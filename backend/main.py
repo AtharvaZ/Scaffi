@@ -100,7 +100,7 @@ async def generate_starter_code(request: BoilerPlateCodeSchema):
     """
     try:
         # Call Agent 2 to generate starter code
-        result = codegen_agent.generate_starter_code(request)
+        result = codegen_agent.generate_boilerplate_code(request)
         return result
     
     except Exception as e:

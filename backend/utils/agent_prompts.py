@@ -124,12 +124,20 @@ Examples of when NOT to include concept examples:
 """
     else:
         comparison_instruction = """
-The student has not specified a known language. Provide complete working examples ONLY for:
-- Advanced concepts that are non-intuitive (threading, async patterns, delegates)
-- Language-specific features (LINQ, generics, special syntax)
-- Complex patterns that need demonstration
+Provide examples for all types of programming concepts, including:
 
-Do NOT provide examples for basic programming concepts (loops, conditionals, functions, basic data structures).
+1. **Basic concepts** (show very simple, clear examples):
+   - Loops
+   - Conditionals
+   - Functions
+   - Basic data structures (arrays, lists, dictionaries, etc.)
+
+2. **Advanced concepts** (provide well-explained, working examples):
+   - Non-intuitive patterns like threading, async/await, delegates
+   - Language-specific features such as LINQ, generics, and special syntax
+   - Complex patterns that need demonstration
+
+Ensure that basic examples are simple and concise, while advanced examples demonstrate practical usage and subtleties.
 """
     
     return f"""You are helping a student learn programming by providing starter code templates.

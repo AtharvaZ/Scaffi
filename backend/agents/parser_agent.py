@@ -1,7 +1,7 @@
 """ Agent 1 for parsing tasks. 
 Parse Assignments and break tem down into smaller task with dependencies.
 """
-
+import json
 from pyd_models.schemas import AssignmentSchema, TaskBreakdownSchema
 from services import get_anthropic_client
 from utils.agent_prompts import get_parser_prompt
@@ -18,7 +18,7 @@ class ParserAgent:
             assignment_text=inputData.assignment_text,
             target_language=inputData.target_language,
             known_language=inputData.known_language,
-            experience_level=inputData.experirence_level
+            experience_level=inputData.experience_level
         )
 
         response_text = self.client.generate_response(prompt, max_tokens=4000)
