@@ -37,6 +37,7 @@ export function EditorPage() {
     //isLoading,
     error,
     addCompletedTask,
+    toggleCompletedTask,
     setStudentCode,
     setRunnerResult,
     setIsRunning,
@@ -52,6 +53,7 @@ export function EditorPage() {
   const [autoTriggerQuestion, setAutoTriggerQuestion] = useState<
     string | undefined
   >(undefined);
+  const [selectedTaskForExamples, setSelectedTaskForExamples] = useState<number | undefined>(undefined);
 
   // Redirect if no scaffold
   useEffect(() => {
@@ -257,9 +259,14 @@ export function EditorPage() {
                         onClick={() => {
                           if (showHelpPanel && helpMode === "example") {
                             setShowHelpPanel(false);
+                            setSelectedTaskForExamples(undefined);
                           } else {
                             setHelpMode("example");
                             setShowHelpPanel(true);
+                            // Initialize with first task if not already selected
+                            if (selectedTaskForExamples === undefined) {
+                              setSelectedTaskForExamples(0);
+                            }
                           }
                         }}
                         variant="outline"
@@ -300,10 +307,17 @@ export function EditorPage() {
                     todos={scaffold.todo_list}
                     currentTask={currentTask}
                     onTaskSelect={(taskIndex: number) => {
-                      // Mark task as current/completed when clicked
-                      addCompletedTask(taskIndex);
+                      // Toggle task completion when checkbox is clicked
+                      toggleCompletedTask(taskIndex);
                     }}
                     completedTasks={completedTasks}
+                    selectedTaskForExamples={selectedTaskForExamples}
+                    onTaskSelectForExamples={(taskIndex: number) => {
+                      // Only change task selection if example panel is already open
+                      if (showHelpPanel && helpMode === "example") {
+                        setSelectedTaskForExamples(taskIndex);
+                      }
+                    }}
                   />
                 )}
               </div>
@@ -359,6 +373,7 @@ export function EditorPage() {
                 scaffold={scaffold}
                 knownLanguage={proficientLanguage}
                 onClose={() => setShowHelpPanel(false)}
+                selectedTaskForExamples={selectedTaskForExamples}
               />
             )}
           </div>

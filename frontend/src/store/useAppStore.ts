@@ -11,6 +11,7 @@ interface AppStore extends AppState {
   setScaffold: (scaffold: ScaffoldPackage | null) => void;
   setCurrentTask: (task: number) => void;
   addCompletedTask: (task: number) => void;
+  toggleCompletedTask: (task: number) => void;
   setStudentCode: (code: string) => void;
   setHasUnsavedChanges: (hasChanges: boolean) => void;
   setRunnerResult: (result: RunnerResult | null) => void;
@@ -74,6 +75,16 @@ export const useAppStore = create<AppStore>()(
         set((state) => {
           const newCompleted = new Set(state.completedTasks);
           newCompleted.add(task);
+          return { completedTasks: newCompleted };
+        }),
+      toggleCompletedTask: (task) =>
+        set((state) => {
+          const newCompleted = new Set(state.completedTasks);
+          if (newCompleted.has(task)) {
+            newCompleted.delete(task);
+          } else {
+            newCompleted.add(task);
+          }
           return { completedTasks: newCompleted };
         }),
       setCompletedTasks: (tasks) => set({ completedTasks: tasks }),
