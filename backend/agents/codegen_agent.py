@@ -6,7 +6,7 @@ import logging
 from typing import List
 from pyd_models.schemas import BoilerPlateCodeSchema, StarterCode
 from services import get_anthropic_client
-from utils.agent_prompts import get_codegen_prompt
+from utils.agent_prompts import get_batch_codegen_prompt
 from utils.json_parser import extract_json_from_response
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,6 @@ class CodegenAgent:
             })
         
         # Get the batch prompt from agent_prompts
-        from utils.agent_prompts import get_batch_codegen_prompt
         prompt = get_batch_codegen_prompt(tasks_dict_list)
         
         last_error = None
@@ -45,7 +44,7 @@ class CodegenAgent:
                 # Use higher max_tokens for batch (but still reasonable)
                 # Roughly 300-500 tokens per task
                 estimated_tokens = len(tasks_data) * 400
-                max_tokens = min(estimated_tokens + 500, 8000)  # Cap at 8000
+                max_tokens = min(estimated_tokens + 500, 8000)
                 
                 response_text = self.client.generate_response(prompt, max_tokens=max_tokens)
                 
@@ -71,11 +70,14 @@ class CodegenAgent:
                         raise ValueError(f"Task {i} missing 'instructions' field")
                     if "todos" not in task_data:
                         raise ValueError(f"Task {i} missing 'todos' field")
-                    
+
                     # Map "code" to "code_snippet" if needed
                     if "code" in task_data and "code_snippet" not in task_data:
                         task_data["code_snippet"] = task_data["code"]
-                    
+
+                    # Log the todos for debugging
+                    logger.info(f"Task {i} todos: {task_data['todos']}")
+
                     # Create StarterCode object
                     results.append(StarterCode(
                         code_snippet=task_data["code_snippet"],
@@ -83,8 +85,13 @@ class CodegenAgent:
                         todos=task_data["todos"],
                         concept_examples=None  # Always null - generated on-demand
                     ))
-                
+
                 logger.info(f"Successfully generated {len(results)} starter codes in batch on attempt {attempt + 1}")
+                logger.info("=" * 80)
+                logger.info("BATCH GENERATION SUMMARY:")
+                for idx, result in enumerate(results):
+                    logger.info(f"Task {idx}: {len(result.todos)} todos")
+                logger.info("=" * 80)
                 return results
                 
             except Exception as e:
@@ -110,3 +117,10 @@ class CodegenAgent:
         # If all retries failed
         logger.error(f"All {self.max_retries} batch attempts failed")
         raise ValueError(f"Failed to generate batch code after {self.max_retries} attempts: {str(last_error)}")
+
+codegen_agent = None
+def get_batch_codegen_agent() -> CodegenAgent:
+    global codegen_agent
+    if codegen_agent is None:
+        codegen_agent = CodegenAgent()
+    return codegen_agent

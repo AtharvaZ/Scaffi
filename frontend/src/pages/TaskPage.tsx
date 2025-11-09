@@ -250,75 +250,11 @@ export function TaskPage() {
                 const task = parserOutput.tasks?.[taskIndex] || null;
                 const taskConcepts = task?.concepts || [];
                 const taskConceptExamples = scaffold.task_concept_examples?.[`task_${taskIndex}`] || {};
-                
-                // Get starter code structure for this specific task
-                const getTaskCodeStructure = () => {
-                  if (!scaffold.starter_files || Object.keys(scaffold.starter_files).length === 0) {
-                    return null;
-                  }
-                  const starterCode = Object.values(scaffold.starter_files)[0];
-                  
-                  // Extract code snippet relevant to this specific task
-                  // Look for TODO comments with task numbers or extract by task index
-                  const lines = starterCode.split('\n');
-                  const taskNumber = taskIndex + 1;
-                  
-                  // Try to find code block for this specific task
-                  // Look for patterns like "TODO: task 1", "TODO 1", or task-specific markers
-                  const taskPatterns = [
-                    new RegExp(`TODO.*${taskNumber}`, 'i'),
-                    new RegExp(`TODO.*task.*${taskNumber}`, 'i'),
-                    new RegExp(`# TODO ${taskNumber}`, 'i'),
-                    new RegExp(`// TODO ${taskNumber}`, 'i'),
-                  ];
-                  
-                  let startIdx = -1;
-                  let endIdx = lines.length;
-                  
-                  // Find the start of this task's code block
-                  for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    if (taskPatterns.some(pattern => pattern.test(line))) {
-                      startIdx = i;
-                      break;
-                    }
-                  }
-                  
-                  // If we found a start, look for the next task or end of function/block
-                  if (startIdx !== -1) {
-                    // Look for the next task's TODO or end of current block
-                    for (let i = startIdx + 1; i < lines.length; i++) {
-                      const line = lines[i];
-                      const nextTaskNumber = taskNumber + 1;
-                      const nextTaskPatterns = [
-                        new RegExp(`TODO.*${nextTaskNumber}`, 'i'),
-                        new RegExp(`TODO.*task.*${nextTaskNumber}`, 'i'),
-                        new RegExp(`# TODO ${nextTaskNumber}`, 'i'),
-                        new RegExp(`// TODO ${nextTaskNumber}`, 'i'),
-                      ];
-                      
-                      if (nextTaskPatterns.some(pattern => pattern.test(line))) {
-                        endIdx = i;
-                        break;
-                      }
-                    }
-                    
-                    // Extract the relevant code snippet
-                    const relevantLines = lines.slice(startIdx, endIdx);
-                    return relevantLines.join('\n');
-                  }
-                  
-                  // Fallback: if we can't find task-specific code, show a portion based on task index
-                  // Divide code into chunks based on number of tasks
-                  const totalTasks = scaffold.todo_list.length;
-                  const linesPerTask = Math.ceil(lines.length / totalTasks);
-                  const startLine = taskIndex * linesPerTask;
-                  const endLine = Math.min(startLine + linesPerTask, lines.length);
-                  
-                  return lines.slice(startLine, endLine).join('\n');
-                };
-                
-                const codeStructure = getTaskCodeStructure();
+
+                // Get the code snippet for this specific task from starter_files
+                const fileExtension = language === 'python' ? 'py' : 'js';
+                const fileName = `task_${taskIndex + 1}.${fileExtension}`;
+                const codeStructure = scaffold.starter_files?.[fileName] || null;
                 
                 return (
                   <div
@@ -500,6 +436,22 @@ export function TaskPage() {
                       {/* Code Structure/Template Section */}
                       <div className="rounded-xl border border-gray-200/60 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/50 p-6">
                         <h4 className="mb-3 text-sm font-semibold text-black dark:text-white">Code Structure</h4>
+
+                        {/* TODOs for this task */}
+                        {scaffold.task_todos && scaffold.task_todos[`task_${taskIndex}`] && scaffold.task_todos[`task_${taskIndex}`].length > 0 && (
+                          <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                            <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">TODOs:</div>
+                            <ol className="space-y-1">
+                              {scaffold.task_todos[`task_${taskIndex}`].map((todo, idx) => (
+                                <li key={idx} className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                                  <span className="flex-shrink-0 text-blue-600 dark:text-blue-400 font-semibold">{idx + 1}.</span>
+                                  <span className="flex-1">{todo}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+
                         {codeStructure ? (
                           <div className="space-y-2">
                             <pre className="text-xs text-gray-800 dark:text-gray-300 whitespace-pre-wrap leading-relaxed font-mono bg-white dark:bg-black p-4 rounded-lg border border-gray-200 dark:border-gray-800 overflow-x-auto max-h-[400px] overflow-y-auto">

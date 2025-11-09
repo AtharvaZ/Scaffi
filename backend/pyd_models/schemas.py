@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from datetime import datetime
 
 
 #--------Schema for Agent 1: Parser--------#

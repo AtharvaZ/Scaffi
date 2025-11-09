@@ -133,10 +133,18 @@ async def generate_starter_code_bacth(request: BatchBoilerPlateCodeSchema):
         
         # Call Agent 2's batch method
         results = codegen_agent.generate_all_boilerplate_batch(request.tasks)
-        
+
         elapsed_time = time.time() - start_time
         logger.info(f"Batch generation completed in {elapsed_time:.2f} seconds")
-        
+
+        # Log what we're returning to frontend
+        logger.info("=" * 80)
+        logger.info("RETURNING TO FRONTEND:")
+        for idx, result in enumerate(results):
+            logger.info(f"Task {idx} - Todos count: {len(result.todos)}")
+            logger.info(f"Task {idx} - Todos: {result.todos}")
+        logger.info("=" * 80)
+
         return BatchStarterCodeResponse(
             tasks=results,
             total_tasks=len(results),

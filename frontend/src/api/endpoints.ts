@@ -3,9 +3,9 @@ import type {
   TaskBreakdownSchema,
   StarterCode,
   HintSchema,
-  //ParserOutput,
+  ParserOutput,
   ScaffoldPackage,
-  //RunnerResult,
+  RunnerResult,
 } from "../types";
 
 // Health check
@@ -26,8 +26,8 @@ export async function parseAssignment(
   targetLanguage: string,
   knownLanguage?: string,
   experienceLevel: string = "intermediate"
-): Promise<TaskBreakdownSchema> {
-  return apiCall<TaskBreakdownSchema>("/parse-assignment", {
+): Promise<ParserOutput> {
+  return apiCall<ParserOutput>("/parse-assignment", {
     method: "POST",
     body: JSON.stringify({
       assignment_text: assignmentText,
@@ -93,18 +93,12 @@ export async function runCode(
   code: string,
   language: string,
   stdin?: string
-): Promise<{
-  success: boolean;
-  output: string;
-  error: string;
-  exit_code: number;
-  execution_time: string;
-}> {
-  return apiCall("/run-code", {
+): Promise<RunnerResult> {
+  return apiCall<RunnerResult>("/run-code", {
     method: "POST",
     body: JSON.stringify({
-      code: code,
-      language: language,
+      code,
+      language,
       stdin: stdin || null,
     }),
   });
@@ -164,7 +158,31 @@ export async function parseAndScaffold(
     clearInterval(progressInterval);
     if (onProgress) onProgress("generating", totalTasks, totalTasks);
 
-    // Rest of your scaffold package construction (no changes)
+    // Verify we have the same number of tasks
+    if (starterCodes.length !== taskBreakdown.tasks.length) {
+      console.error(
+        `Mismatch: Expected ${taskBreakdown.tasks.length} starter codes, got ${starterCodes.length}`
+      );
+    }
+
+    // Debug: Log the todos for each task
+    console.log("Task todos mapping:");
+    starterCodes.forEach((code, index) => {
+      console.log(`task_${index}:`, code.todos);
+    });
+
+    // Combine all task code snippets into one file
+    const combinedCode = starterCodes
+      .map((code, index) => {
+        const taskNumber = index + 1;
+        return `# ===== TASK ${taskNumber}: ${taskBreakdown.tasks[index].title} =====\n${code.code_snippet}`;
+      })
+      .join("\n\n");
+
+    // Flatten all todos from all tasks into one array
+    const allTodos = starterCodes.flatMap((code) => code.todos || []);
+
+    // Rest of your scaffold package construction
     const scaffoldPackage: ScaffoldPackage = {
       todo_list: taskBreakdown.tasks.map((task) => task.description),
       starter_files: starterCodes.reduce((acc, code, index) => {
@@ -174,27 +192,27 @@ export async function parseAndScaffold(
       }, {} as Record<string, string>),
       unit_tests: {},
       per_task_hints: {},
-      code_snippet: starterCodes[0]?.code_snippet,
+      code_snippet: combinedCode, // Combined code for editor
       instructions: starterCodes[0]?.instructions,
-      todos: starterCodes[0]?.todos,
+      todos: allTodos, // All todos flattened
       concept_examples: starterCodes[0]?.concept_examples,
       task_concepts: taskBreakdown.tasks.reduce((acc, task, index) => {
         acc[`task_${index}`] = task.concepts;
         return acc;
       }, {} as Record<string, string[]>),
       task_concept_examples: starterCodes.reduce((acc, code, index) => {
-        if (code.concept_examples) {
-          acc[`task_${index}`] = code.concept_examples;
-        }
+        // Always set concept_examples, even if undefined
+        acc[`task_${index}`] = code.concept_examples || {};
         return acc;
       }, {} as Record<string, Record<string, string>>),
       task_todos: starterCodes.reduce((acc, code, index) => {
-        if (code.todos) {
-          acc[`task_${index}`] = code.todos;
-        }
+        // Ensure we always set todos, even if empty array
+        acc[`task_${index}`] = code.todos || [];
         return acc;
       }, {} as Record<string, string[]>),
     };
+
+    console.log("Final task_todos:", scaffoldPackage.task_todos);
 
     return {
       parser_output: taskBreakdown,
