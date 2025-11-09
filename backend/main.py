@@ -262,35 +262,6 @@ async def extract_pdf_text(file: UploadFile = File(...)):
 
 
 # ============================================
-# ON-DEMAND CONCEPT EXAMPLES
-# ============================================
-
-@app.post("/get-concept-example", response_model=ConceptExampleResponse)
-async def get_concept_example(request: ConceptExampleRequest):
-    """
-    Generate on-demand concept examples for students
-    
-    Provides examples of programming concepts in the student's known language
-    to help them understand and apply concepts to the target language.
-    """
-    try:
-        logger.info(f"Generating on-demand example for concept: {request.concept} in {request.programming_language}")
-        
-        # Call the concept example agent
-        result = concept_example_agent.generate_example(request)
-        
-        logger.info(f"Successfully generated {result.example_type} example for {request.concept}")
-        return result
-    
-    except Exception as e:
-        logger.error(f"Failed to generate concept example: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate concept example: {str(e)}"
-        )
-
-
-# ============================================
 # RUN THE APP
 # ============================================
 
