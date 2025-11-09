@@ -45,6 +45,16 @@ class StarterCode(BaseModel):
     todos: List[str]
     concept_examples: Optional[Dict[str, str]] = None
 
+# Input - batch of code generation requests
+class BatchBoilerPlateCodeSchema(BaseModel):
+    tasks: List[BoilerPlateCodeSchema]
+
+# Output - batch of starter codes
+class BatchStarterCodeResponse(BaseModel):
+    tasks: List[StarterCode]
+    total_tasks: int
+    generation_time: Optional[str] = None
+
 #--------Schema for Agent 3: Live Helper--------#
 
 #Input
@@ -109,7 +119,5 @@ class ConceptExampleResponse(BaseModel):
     explanation: str
     comparison_to_known: Optional[str] = None  # If known_language provided
 
-
-# #--------Schema for Agent 4: Code Reviewer/Guidance--------#
 
 
