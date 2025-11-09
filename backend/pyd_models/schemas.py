@@ -81,6 +81,16 @@ class CodeExecutionResult(BaseModel):
     execution_time: str
 
 
+#--------Schema for PDF Text Extraction--------#
+
+#Output
+class PDFExtractionResult(BaseModel):
+    success: bool
+    extracted_text: str
+    page_count: int
+    error: Optional[str] = None
+
+
 # #--------Schema for Agent 4: Code Reviewer/Guidance--------#
 
 # class SyntaxRequest(BaseModel):

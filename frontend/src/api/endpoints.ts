@@ -163,6 +163,40 @@ export async function parseAndScaffold(
   };
 }
 
+// Extract text from PDF - matches backend /extract-pdf-text endpoint
+export async function extractPdfText(file: File): Promise<{
+  success: boolean;
+  extracted_text: string;
+  page_count: number;
+  error: string | null;
+}> {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const url = `${API_BASE_URL}/extract-pdf-text`;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      // Don't set Content-Type header - browser will set it with boundary for FormData
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API Error: ${response.status} - ${errorText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(`Network error: Cannot connect to ${url}. Check if backend is running and CORS is configured.`);
+    }
+    throw error;
+  }
+}
+
 // Chat endpoint - uses get-hint endpoint
 export async function chatWithAI(
   message: string,

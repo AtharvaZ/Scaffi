@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import uvicorn
@@ -17,7 +17,8 @@ from pyd_models.schemas import (
     HintResponseSchema,
     HintSchema,
     CodeExecutionRequest,
-    CodeExecutionResult
+    CodeExecutionResult,
+    PDFExtractionResult
 )
 
 # Import agents and services
@@ -25,6 +26,7 @@ from agents.parser_agent import ParserAgent
 from agents.codegen_agent import CodegenAgent
 from agents.live_helper import LiveHelperAgent
 from services.code_runner import get_code_runner
+from services.pdf_extractor import get_pdf_extractor
 
 load_dotenv()
 
@@ -185,6 +187,41 @@ async def run_code(request: CodeExecutionRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to execute code: {str(e)}"
+        )
+
+
+# ============================================
+# PDF TEXT EXTRACTION
+# ============================================
+
+@app.post("/extract-pdf-text", response_model=PDFExtractionResult)
+async def extract_pdf_text(file: UploadFile = File(...)):
+    """
+    Extract text from uploaded PDF file
+    
+    Supports PDF text extraction with:
+    - File validation (PDF only, max 10MB)
+    - Multi-page extraction
+    - Error handling for corrupted/invalid PDFs
+    """
+    try:
+        logger.info(f"Received PDF upload request: {file.filename} ({file.content_type})")
+        
+        pdf_extractor = get_pdf_extractor()
+        result = await pdf_extractor.extract_text(file)
+        
+        if result['success']:
+            logger.info(f"Successfully extracted text from PDF: {result['page_count']} pages, {len(result['extracted_text'])} characters")
+        else:
+            logger.warning(f"PDF extraction failed: {result['error']}")
+        
+        return PDFExtractionResult(**result)
+    
+    except Exception as e:
+        logger.error(f"PDF extraction error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to extract text from PDF: {str(e)}"
         )
 
 
