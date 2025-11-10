@@ -109,7 +109,7 @@ Scaffy_frontend/
 
    Create a `.env` file in the `backend/` directory:
    ```env
-   CLAUDE_API_KEY=your_anthropic_api_key_here
+   ANTHROPIC_API_KEY=your_anthropic_api_key_here
    ```
 
    Create a `.env` file in the `frontend/` directory :
@@ -155,7 +155,7 @@ Scaffy_frontend/
 ### Code Execution
 - `POST /run-code` - Execute Python or JavaScript code (powered by Piston API)
 
-See the FastAPI docs at `http://localhost:8000/docs` for detailed API documentation.
+See the FastAPI docs at `http://127.0.0.1:5000/docs` for detailed API documentation.
 
 ## 🎯 How It Works
 
@@ -172,7 +172,7 @@ See the FastAPI docs at `http://localhost:8000/docs` for detailed API documentat
 ```bash
 cd backend
 source venv/bin/activate
-python main.py  # Runs with auto-reload enabled
+uvicorn main:app --reload --port 5000  # Runs with auto-reload enabled
 ```
 
 ### Frontend Development
@@ -194,7 +194,7 @@ npm run preview # Preview production build
 - `PISTON_API_URL` (optional) - Piston API endpoint, defaults to `https://emkc.org/api/v2/piston`
 
 ### Frontend (.env)
-- `VITE_API_BASE_URL` (optional) - Backend API URL, defaults to `http://localhost:8000`
+- `VITE_API_BASE_URL` (optional) - Backend API URL, defaults to `http://127.0.0.1:8000`
 
 ## 🤝 Contributing
 
