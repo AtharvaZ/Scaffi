@@ -1,14 +1,16 @@
 # Scaffy
 
-**AI-powered assignment scaffolder that breaks down programming assignments into manageable tasks**
+**Stop staring at assignment specs. Start coding in just a few seconds.**
 
-Scaffy is an intelligent learning tool that helps students tackle programming assignments by breaking them down into smaller, manageable tasks with starter code, hints, and live code execution.
+Scaffy breaks down programming assignments into clear, manageable tasks—
+with starter code, smart hints, instant feedback and validation tests. No more "where do 
+I even start?" Just focused work and actual learning.
 
 ## 🚀 Features
 
 - **Assignment Parsing**: Upload PDFs or paste assignment text to automatically break down complex assignments into ordered tasks with dependencies
 - **Starter Code Generation**: Get AI-generated starter code templates with TODOs and concept examples tailored to your experience level
-- **Live Code Execution**: Run Python and JavaScript code directly in the browser using Piston API with real-time output and error handling
+- **Live Code Execution**: Run the desired language code in your assignment directly in the browser using Piston API with real-time output and error handling
 - **Progressive Hints**: Get contextual hints that become more specific as you ask for help multiple times
 - **Concept Examples**: On-demand examples of programming concepts in your known language to help bridge to the target language
 - **PDF Upload**: Extract text from assignment PDFs automatically
@@ -19,11 +21,11 @@ Scaffy is an intelligent learning tool that helps students tackle programming as
 
 ### Backend
 - **FastAPI** - Modern Python web framework
+- **Pydantic** - Data validation and settings management
 - **Anthropic Claude API** - AI agent for parsing, code generation, and hints
 - **Piston API** - Code execution service for running Python, JavaScript, and other languages
 - **Uvicorn** - ASGI server
 - **pdfplumber** - PDF text extraction
-- **Pydantic** - Data validation and settings management
 
 ### Frontend
 - **React 18** - UI framework
