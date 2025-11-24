@@ -9,6 +9,7 @@ interface AppStore extends AppState {
   setProficientLanguage: (language: string) => void;
   setExperienceLevel: (level: string) => void;
   setParserOutput: (output: ParserOutput | null) => void;
+  updateTestCases: (testCases: any[]) => void;
   setScaffold: (scaffold: ScaffoldPackage | null) => void;
   setCurrentTask: (task: number) => void;
   addCompletedTask: (task: number) => void;
@@ -72,6 +73,9 @@ export const useAppStore = create<AppStore>()(
       setProficientLanguage: (language) => set({ proficientLanguage: language }),
       setExperienceLevel: (level) => set({ experienceLevel: level }),
       setParserOutput: (output) => set({ parserOutput: output }),
+      updateTestCases: (testCases) => set((state) => ({
+        parserOutput: state.parserOutput ? { ...state.parserOutput, tests: testCases } : null
+      })),
       setScaffold: (scaffold) => set({ scaffold }),
       setCurrentTask: (task) => set({ currentTask: task, attemptCount: 0 }),
       addCompletedTask: (task) =>

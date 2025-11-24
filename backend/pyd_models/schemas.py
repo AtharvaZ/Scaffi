@@ -20,11 +20,21 @@ class TaskSchema(BaseModel):
     estimated_time: str
     concepts: List[str]
 
+#Test Case Schema
+class TestCase(BaseModel):
+    test_name: str  # e.g., "test_empty_input"
+    function_name: str  # The function being tested
+    input_data: str  # Input as string (could be JSON for complex inputs)
+    expected_output: str  # Expected output as string
+    description: str  # Human-readable description
+    test_type: str  # "normal", "edge", or "error"
+
 #Output
 class TaskBreakdownSchema(BaseModel):
     tasks: List[TaskSchema]
     overview: str
     total_estimated_time: str
+    tests: Optional[List[TestCase]] = None
 
 
 
@@ -82,6 +92,16 @@ class CodeExecutionRequest(BaseModel):
     code: str
     language: str
     stdin: Optional[str] = None  # Optional stdin input for input() calls
+    test_cases: Optional[List[TestCase]] = None  # Optional test cases to run
+
+# Individual Test Result
+class TestResult(BaseModel):
+    test_name: str
+    passed: bool
+    input_data: str
+    expected_output: str
+    actual_output: str
+    error: Optional[str] = None
 
 #Output
 class CodeExecutionResult(BaseModel):
@@ -90,6 +110,9 @@ class CodeExecutionResult(BaseModel):
     error: str
     exit_code: int
     execution_time: str
+    test_results: Optional[List[TestResult]] = None
+    tests_passed: Optional[int] = None
+    tests_failed: Optional[int] = None
 
 
 #--------Schema for PDF Text Extraction--------#

@@ -10,11 +10,22 @@ export interface TaskSchema {
   concepts: string[];
 }
 
+// Test Case Schema (from backend)
+export interface TestCase {
+  test_name: string;
+  function_name: string;
+  input_data: string;
+  expected_output: string;
+  description: string;
+  test_type: "normal" | "edge" | "error";
+}
+
 // Task Breakdown Schema (from backend)
 export interface TaskBreakdownSchema {
   tasks: TaskSchema[];
   overview: string;
   total_estimated_time: string;
+  tests?: TestCase[];
 }
 
 // Legacy ParserOutput for compatibility
@@ -22,6 +33,7 @@ export interface ParserOutput {
   tasks: TaskSchema[];
   overview: string;
   total_estimated_time: string;
+  tests?: TestCase[];
 }
 
 // Starter Code Schema (from backend)
@@ -54,6 +66,16 @@ export interface HintSchema {
   example_code?: string;
 }
 
+// Test Result (from backend)
+export interface TestResult {
+  test_name: string;
+  passed: boolean;
+  input_data: string;
+  expected_output: string;
+  actual_output: string;
+  error?: string;
+}
+
 export interface FailedTest {
   test_name: string;
   error_message: string;
@@ -61,15 +83,14 @@ export interface FailedTest {
 }
 
 export interface RunnerResult {
+  success: boolean;
+  output: string;
+  error: string;
   exit_code: number;
-  tests_passed: number;
-  tests_failed: number;
-  failed_tests: FailedTest[];
-  runtime_ms: number;
-  stdout: string;
-  stderr: string;
-  timeout?: boolean;
-  security_violation?: boolean;
+  execution_time: string;
+  test_results?: TestResult[];
+  tests_passed?: number;
+  tests_failed?: number;
 }
 
 export interface FeedbackResponse {
@@ -108,11 +129,6 @@ export interface RunButtonProps {
   onClick: () => void;
   loading: boolean;
   disabled: boolean;
-}
-
-export interface TestResultsProps {
-  results: RunnerResult;
-  onRequestFeedback: () => void;
 }
 
 export interface FeedbackCardProps {

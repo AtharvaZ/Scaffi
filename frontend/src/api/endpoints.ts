@@ -94,7 +94,8 @@ export async function getHint(
 export async function runCode(
   code: string,
   language: string,
-  stdin?: string
+  stdin?: string,
+  testCases?: any[]
 ): Promise<RunnerResult> {
   return apiCall<RunnerResult>("/run-code", {
     method: "POST",
@@ -102,6 +103,7 @@ export async function runCode(
       code,
       language,
       stdin: stdin || null,
+      test_cases: testCases || null,
     }),
   });
 }

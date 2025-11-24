@@ -14,7 +14,6 @@ export function TaskPage() {
   const {
     language,
     proficientLanguage,
-    experienceLevel,
     parserOutput,
     scaffold,
     isLoading,
@@ -125,6 +124,7 @@ export function TaskPage() {
           tasks: result.parser_output.tasks,
           overview: result.parser_output.overview,
           total_estimated_time: result.parser_output.total_estimated_time,
+          tests: result.parser_output.tests,
         };
         setParserOutput(parserOutput);
         setScaffold(result.scaffold_package);
@@ -224,7 +224,7 @@ export function TaskPage() {
     <div className="min-h-screen bg-white dark:bg-black">
       {/* Header */}
       <header className="border-b border-gray-200/60 dark:border-gray-800/60 bg-white dark:bg-black">
-        <div className="mx-auto max-w-[1440px] px-6 lg:px-8">
+        <div className="mx-auto max-w-[1440px] px-3 lg:px-4">
           <div className="flex h-16 items-center justify-between">
             <Link to="/" className="flex items-center">
               <span className="text-[15px] font-semibold text-black dark:text-white">
@@ -246,7 +246,7 @@ export function TaskPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1440px] px-6 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1440px] px-3 py-8 lg:px-4">
         {/* Error Display */}
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-4">

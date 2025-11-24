@@ -1,7 +1,84 @@
 """
-Prompt templates for all three agents
+Prompt templates for all agents
 Clean, focused prompts for each agent's specific task
 """
+
+def get_test_generation_prompt(assignment_text: str, tasks: list, target_language: str) -> str:
+    """
+    Generate test cases based on assignment requirements
+    """
+    tasks_summary = "\n".join([f"Task {t.get('id', i+1)}: {t.get('title', '')} - {t.get('description', '')}"
+                               for i, t in enumerate(tasks)])
+
+    return f"""You are a test case generator for programming assignments. Your task is to generate comprehensive test cases.
+
+Assignment:
+{assignment_text}
+
+Tasks Breakdown:
+{tasks_summary}
+
+Target Language: {target_language}
+
+Your task is to:
+1. Analyze the assignment to identify functions/methods that need testing
+2. Generate 3-7 test cases covering normal, edge, and error scenarios
+3. Infer function signatures from the assignment description
+4. Create realistic input/output pairs
+5. Ensure tests are appropriate for the target language
+
+TEST CASE DISTRIBUTION:
+- 60% normal cases (typical usage)
+- 30% edge cases (boundary conditions, empty inputs, single elements)
+- 10% error cases (invalid inputs, type errors)
+
+LANGUAGE-SPECIFIC FORMATTING:
+Format inputs and outputs according to the target language:
+- Python: Use Python syntax (e.g., "True", "False", "None", "[]", "{{}}")
+- Java: Use Java syntax (e.g., "true", "false", "null", "new ArrayList<>()")
+- JavaScript: Use JS syntax (e.g., "true", "false", "null", "[]", "{{}}")
+- C++: Use C++ syntax (e.g., "true", "false", "nullptr", "vector<int>()")
+
+FUNCTION NAME INFERENCE:
+- Look for explicit function names in the assignment (e.g., "Write a function called reverse_string")
+- If not explicit, infer from the task description (e.g., "reverse string" → "reverse_string" or "reverseString")
+- Use appropriate naming convention for the language (snake_case for Python, camelCase for Java/JS/C++)
+
+EXAMPLE TEST CASE:
+For assignment: "Write a function is_palindrome(s) that checks if a string is a palindrome"
+{{
+  "test_name": "test_basic_palindrome",
+  "function_name": "is_palindrome",
+  "input_data": "\\"racecar\\"",
+  "expected_output": "True",
+  "description": "Basic palindrome check with simple word",
+  "test_type": "normal"
+}}
+
+Return ONLY a valid JSON array of test case objects with this EXACT structure:
+[
+  {{
+    "test_name": "descriptive_test_name",
+    "function_name": "function_being_tested",
+    "input_data": "input as string",
+    "expected_output": "expected output as string",
+    "description": "Human-readable description",
+    "test_type": "normal|edge|error"
+  }}
+]
+
+CRITICAL RESPONSE FORMAT:
+- Your response must be ONLY valid JSON array
+- Do NOT wrap in markdown code blocks (no ``` or ```json)
+- Do NOT include any explanation before or after the JSON
+- Ensure all strings are properly escaped
+- Start your response with [ and end with ]
+- Generate 3-7 test cases minimum
+- If assignment is unclear, make reasonable assumptions and generate basic tests
+
+EXAMPLE VALID RESPONSE:
+[{{"test_name": "test_empty_input", "function_name": "reverse_string", "input_data": "\\"\\"", "expected_output": "\\"\\"", "description": "Handle empty string", "test_type": "edge"}}]"""
+
 
 def get_parser_prompt(assignment_text: str, target_language: str, 
                       known_language: str, experience_level: str) -> str:
@@ -223,6 +300,7 @@ STUDENT EXPERIENCE: Beginner
 STUDENT EXPERIENCE: Advanced
 - You can use technical terminology
 - Hints can be more concise
+- LESS TEST CASES THAN INTERMEDIATE
 - Assume familiarity with common patterns
 - Focus on subtle issues or optimizations
 - Less hand-holding needed"""
@@ -232,6 +310,7 @@ STUDENT EXPERIENCE: Advanced
 STUDENT EXPERIENCE: Intermediate
 - Balance between explanation and brevity
 - Use technical terms but explain if uncommon
+- LESS TEST CASES THAN BEGINNER
 - Assume basic programming knowledge
 - Standard hint depth"""
     # Language context for better hints

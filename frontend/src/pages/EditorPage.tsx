@@ -3,7 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAppStore } from "../store/useAppStore";
 import { CodeEditor } from "../components/CodeEditor";
 import { RunButton } from "../components/RunButton";
-import { TestResults } from "../components/TestResults";
 import { FeedbackCard } from "../components/FeedbackCard";
 import { ProgressIndicator } from "../components/ProgressIndicator";
 import { SuccessCelebration } from "../components/SuccessCelebration";
@@ -11,16 +10,18 @@ import { GetHint } from "../components/GetHint";
 import { GetConceptExample } from "../components/GetConceptExample";
 import { TodoList } from "../components/TodoList";
 import { DarkModeToggle } from "../components/DarkModeToggle";
+import { TestCaseResults } from "../components/TestCaseResults";
+import { TestCasesPanel } from "../components/TestCasesPanel";
 import { runCode } from "../api/endpoints";
 import { safeApiCall } from "../api/client";
 import { Button } from "../components/ui/button";
 import { ArrowLeft, Lightbulb, Code2 } from "lucide-react";
-import type { RunnerResult } from "../types";
 
 export function EditorPage() {
   const navigate = useNavigate();
   const {
     scaffold,
+    parserOutput,
     currentTask,
     completedTasks,
     studentCode,
@@ -29,13 +30,10 @@ export function EditorPage() {
     feedback,
     showFeedback,
     attemptCount,
-    // studentId,
-    // assignmentId,
     startTime,
     language,
     proficientLanguage,
     experienceLevel,
-    //isLoading,
     error,
     addCompletedTask,
     toggleCompletedTask,
@@ -44,8 +42,7 @@ export function EditorPage() {
     setIsRunning,
     setFeedback,
     setShowFeedback,
-    // incrementAttemptCount,
-    // setIsLoading,
+    updateTestCases,
     setError,
   } = useAppStore();
 
@@ -55,6 +52,7 @@ export function EditorPage() {
     string | undefined
   >(undefined);
   const [selectedTaskForExamples, setSelectedTaskForExamples] = useState<number | undefined>(undefined);
+  const [lastTestResults, setLastTestResults] = useState<any[] | null>(null);
 
   // Redirect if no scaffold
   useEffect(() => {
@@ -70,30 +68,25 @@ export function EditorPage() {
     setError(null);
 
     try {
-      // Run the student's code
+      // Get test cases from parserOutput if available
+      const testCases = parserOutput?.tests || [];
+
+      // Run the student's code with test cases
       const result = await safeApiCall(
-        () => runCode(studentCode, language),
+        () => runCode(studentCode, language, undefined, testCases),
         "Failed to run code"
       );
 
       if (result) {
-        // Convert to runner result format that TestResults component expects
-        const runnerResult: RunnerResult = {
-          exit_code: result.exit_code || 0,
-          tests_passed: result.tests_passed || 0,
-          tests_failed: result.tests_failed || 0,
-          runtime_ms: result.runtime_ms || 0,
-          stdout: result.stdout || "",
-          stderr: result.stderr || "",
-          failed_tests: result.failed_tests || [],
-          timeout: result.timeout,
-          security_violation: result.security_violation,
-        };
+        setRunnerResult(result);
 
-        setRunnerResult(runnerResult);
+        // Save test results for indicators
+        if (result.test_results) {
+          setLastTestResults(result.test_results);
+        }
 
-        // If code runs successfully, mark current task as completed
-        if (result.tests_passed > 0 && result.tests_failed === 0) {
+        // If all tests passed, mark current task as completed
+        if (result.tests_passed && result.tests_passed > 0 && result.tests_failed === 0) {
           addCompletedTask(currentTask);
         }
       }
@@ -102,40 +95,6 @@ export function EditorPage() {
     } finally {
       setIsRunning(false);
     }
-  };
-
-  const handleGetFeedback = () => {
-    if (!scaffold || !studentCode || !runnerResult) return;
-
-    // Build error message from runner result
-    const errorMessages: string[] = [];
-
-    if (runnerResult.stderr) {
-      errorMessages.push(runnerResult.stderr);
-    }
-
-    if (runnerResult.failed_tests && runnerResult.failed_tests.length > 0) {
-      runnerResult.failed_tests.forEach((test) => {
-        if (test.error_message) {
-          errorMessages.push(test.error_message);
-        }
-      });
-    }
-
-    // Create a question that includes the error information
-    const errorText =
-      errorMessages.length > 0
-        ? errorMessages.join("\n").substring(0, 500) // Limit error text length
-        : "My code has an error and I need help fixing it.";
-
-    const question = `My code has errors when I run it. Here are the error messages:\n\n${errorText}\n\nCan you help me understand what's wrong and how to fix it?`;
-
-    // Open the help panel with hint mode and auto-trigger
-    setHelpMode("hint");
-    setShowHelpPanel(true);
-
-    // Store the question for the GetHint component to use
-    setAutoTriggerQuestion(question);
   };
 
   const handleContinue = () => {
@@ -171,7 +130,7 @@ export function EditorPage() {
     <div className="min-h-screen bg-white dark:bg-black">
       {/* Header */}
       <header className="border-b border-gray-200/60 dark:border-gray-800/60 bg-white dark:bg-black">
-        <div className="mx-auto max-w-[1440px] px-6 lg:px-8">
+        <div className="mx-auto max-w-[1440px] px-3 lg:px-4">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -199,7 +158,7 @@ export function EditorPage() {
       <div className="flex h-[calc(100vh-80px)] overflow-hidden">
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
-          <div className="flex-1 overflow-y-auto mx-auto max-w-[1440px] w-full px-6 py-8 lg:px-8">
+          <div className="flex-1 overflow-y-auto mx-auto max-w-[1440px] w-full px-3 py-8 lg:px-4">
             {/* Error Display */}
             {error && (
               <div className="mb-6 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-4">
@@ -289,13 +248,27 @@ export function EditorPage() {
                     />
                   </div>
 
-                  {/* Test Results - appears inline, no extra spacing */}
-                  {runnerResult && (
-                    <div className="mt-2">
-                      <TestResults
-                        results={runnerResult}
-                        onRequestFeedback={handleGetFeedback}
-                      />
+                  {/* Test Cases Panel - Shows available test cases BEFORE running OR results AFTER running */}
+                  {parserOutput?.tests && parserOutput.tests.length > 0 && (
+                    <div className="mt-3 h-[280px]">
+                      {runnerResult && runnerResult.test_results && runnerResult.test_results.length > 0 ? (
+                        // Show test results after running
+                        <div className="h-full rounded-lg border border-gray-200 dark:border-gray-800">
+                          <TestCaseResults
+                            testResults={runnerResult.test_results}
+                            testsPassedCount={runnerResult.tests_passed}
+                            testsFailedCount={runnerResult.tests_failed}
+                            onEditTests={() => setRunnerResult(null)}
+                          />
+                        </div>
+                      ) : (
+                        // Show test cases before running - editable
+                        <TestCasesPanel
+                          testCases={parserOutput.tests}
+                          onTestCasesChange={updateTestCases}
+                          testResults={lastTestResults || undefined}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
