@@ -88,7 +88,8 @@ export function TaskPage() {
   const handleAssignmentSubmit = async (
     text: string,
     lang: string,
-    proficientLang: string
+    proficientLang: string,
+    experienceLevel: string
   ) => {
     setAssignmentText(text);
     setLanguage(lang);
@@ -104,7 +105,7 @@ export function TaskPage() {
             text,
             lang,
             proficientLang,
-            "intermediate",
+            experienceLevel,
             (stage, completed, total) => {
               setProgressStage(stage);
               setProgressTasks({ completed, total });

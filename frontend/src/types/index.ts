@@ -84,7 +84,7 @@ export interface FeedbackResponse {
 // Component Props Types
 
 export interface AssignmentInputProps {
-  onAssignmentSubmit: (text: string, language: string, proficientLanguage: string) => void;
+  onAssignmentSubmit: (text: string, language: string, proficientLanguage: string, experienceLevel: string) => void;
   loading: boolean;
 }
 

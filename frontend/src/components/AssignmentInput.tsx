@@ -14,10 +14,11 @@ export function AssignmentInput({
   const [assignmentText, setAssignmentText] = useState("");
   const [language, setLanguage] = useState("python");
   const [proficientLanguage, setProficientLanguage] = useState("");
+  const [experienceLevel, setExperienceLevel] = useState("intermediate");
 
   const handleSubmit = () => {
     if (assignmentText.trim()) {
-      onAssignmentSubmit(assignmentText, language, proficientLanguage);
+      onAssignmentSubmit(assignmentText, language, proficientLanguage, experienceLevel);
     }
   };
 
@@ -163,6 +164,25 @@ export function AssignmentInput({
                 <option value="typescript">TypeScript</option>
               </Select>
             </div>
+          </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="experience-level"
+              className="text-sm font-medium text-black dark:text-white"
+            >
+              Experience Level
+            </label>
+            <Select
+              id="experience-level"
+              value={experienceLevel}
+              onChange={(e) => setExperienceLevel(e.target.value)}
+              disabled={loading}
+              className="border-gray-200 dark:border-gray-800 focus:border-blue-500 dark:focus:border-blue-500"
+            >
+              <option value="beginner">Beginner - New to programming</option>
+              <option value="intermediate">Intermediate - Some programming experience</option>
+              <option value="advanced">Advanced - Experienced programmer</option>
+            </Select>
           </div>
           <Button
             onClick={handleSubmit}
