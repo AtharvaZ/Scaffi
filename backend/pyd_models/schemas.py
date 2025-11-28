@@ -20,11 +20,27 @@ class TaskSchema(BaseModel):
     estimated_time: str
     concepts: List[str]
 
+# NEW: File Schema for multi-file support
+class FileSchema(BaseModel):
+    filename: str
+    purpose: str
+    tasks: List[TaskSchema]
+
+#Test Case Schema
+class TestCase(BaseModel):
+    test_name: str  # e.g., "test_empty_input"
+    function_name: str  # The function being tested
+    input_data: str  # Input as string (could be JSON for complex inputs)
+    expected_output: str  # Expected output as string
+    description: str  # Human-readable description
+    test_type: str  # "normal", "edge", or "error"
+
 #Output
 class TaskBreakdownSchema(BaseModel):
-    tasks: List[TaskSchema]
     overview: str
     total_estimated_time: str
+    files: List[FileSchema]  # Changed from: tasks: List[TaskSchema]
+    tests: Optional[List[TestCase]] = None
 
 
 
@@ -36,6 +52,8 @@ class BoilerPlateCodeSchema(BaseModel):
     programming_language: str
     concepts: List[str]
     known_language: Optional[str] = None
+    experience_level: Optional[str] = None
+    filename: str  # NEW: which file this task belongs to
 
 #Output
 class StarterCode(BaseModel):
@@ -43,6 +61,7 @@ class StarterCode(BaseModel):
     instructions: str
     todos: List[str]
     concept_examples: Optional[Dict[str, str]] = None
+    filename: str  # NEW: which file this task belongs to
 
 # Input - batch of code generation requests
 class BatchBoilerPlateCodeSchema(BaseModel):
@@ -66,6 +85,7 @@ class HintResponseSchema(BaseModel):
    help_count: int
    known_language: Optional[str] = None
    target_language: Optional[str] = None
+   experience_level: Optional[str] = None
 
 #Output
 class HintSchema(BaseModel):
@@ -81,6 +101,16 @@ class CodeExecutionRequest(BaseModel):
     code: str
     language: str
     stdin: Optional[str] = None  # Optional stdin input for input() calls
+    test_cases: Optional[List[TestCase]] = None  # Optional test cases to run
+
+# Individual Test Result
+class TestResult(BaseModel):
+    test_name: str
+    passed: bool
+    input_data: str
+    expected_output: str
+    actual_output: str
+    error: Optional[str] = None
 
 #Output
 class CodeExecutionResult(BaseModel):
@@ -89,6 +119,9 @@ class CodeExecutionResult(BaseModel):
     error: str
     exit_code: int
     execution_time: str
+    test_results: Optional[List[TestResult]] = None
+    tests_passed: Optional[int] = None
+    tests_failed: Optional[int] = None
 
 
 #--------Schema for PDF Text Extraction--------#

@@ -21,6 +21,7 @@ export function TaskPage() {
     setAssignmentText,
     setLanguage,
     setProficientLanguage,
+    setExperienceLevel,
     setParserOutput,
     setScaffold,
     setStudentCode,
@@ -58,7 +59,7 @@ export function TaskPage() {
     >
   >({});
   const [loadingExample, setLoadingExample] = useState<string | null>(null);
-  const [expandedConcept, setExpandedConcept] = useState<string | null>(null);
+  const [expandedConcept, setExpandedConcept] = useState<Record<number, string | null>>({});
   const [taskExamples, setTaskExamples] = useState<
     Record<
       number,
@@ -89,11 +90,12 @@ export function TaskPage() {
     text: string,
     lang: string,
     proficientLang: string,
-    experienceLevel: string
+    expLevel: string
   ) => {
     setAssignmentText(text);
     setLanguage(lang);
     setProficientLanguage(proficientLang);
+    setExperienceLevel(expLevel);
     setIsLoading(true);
     setError(null);
     setProgressStage("parsing");
@@ -105,7 +107,7 @@ export function TaskPage() {
             text,
             lang,
             proficientLang,
-            experienceLevel,
+            expLevel,
             (stage, completed, total) => {
               setProgressStage(stage);
               setProgressTasks({ completed, total });
@@ -118,10 +120,14 @@ export function TaskPage() {
         setProgressStage("complete");
 
         // Convert TaskBreakdownSchema to ParserOutput format for compatibility
+        // Flatten files structure into tasks array for backward compatibility
+        const allTasks = result.parser_output.files?.flatMap(file => file.tasks) || [];
         const parserOutput = {
-          tasks: result.parser_output.tasks,
+          tasks: allTasks,
+          files: result.parser_output.files,
           overview: result.parser_output.overview,
           total_estimated_time: result.parser_output.total_estimated_time,
+          tests: result.parser_output.tests,
         };
         setParserOutput(parserOutput);
         setScaffold(result.scaffold_package);
@@ -153,11 +159,15 @@ export function TaskPage() {
 
   const fetchConceptExample = async (
     concept: string,
-    taskDescription: string
+    taskDescription: string,
+    taskIndex: number
   ) => {
-    // If already loaded, just toggle display
+    // If already loaded, just toggle display for this task
     if (conceptExamples[concept]) {
-      setExpandedConcept(expandedConcept === concept ? null : concept);
+      setExpandedConcept((prev) => ({
+        ...prev,
+        [taskIndex]: prev[taskIndex] === concept ? null : concept,
+      }));
       return;
     }
 
@@ -176,7 +186,7 @@ export function TaskPage() {
 
       if (result) {
         setConceptExamples((prev) => ({ ...prev, [concept]: result }));
-        setExpandedConcept(concept);
+        setExpandedConcept((prev) => ({ ...prev, [taskIndex]: concept }));
       }
     } catch (error) {
       console.error("Error fetching concept example:", error);
@@ -221,10 +231,10 @@ export function TaskPage() {
     <div className="min-h-screen bg-white dark:bg-black">
       {/* Header */}
       <header className="border-b border-gray-200/60 dark:border-gray-800/60 bg-white dark:bg-black">
-        <div className="mx-auto max-w-[1440px] px-6 lg:px-8">
+        <div className="mx-auto max-w-[1440px] px-3 lg:px-4">
           <div className="flex h-16 items-center justify-between">
             <Link to="/" className="flex items-center">
-              <span className="text-[15px] font-semibold text-black dark:text-white">
+              <span className="text-xl font-semibold text-black dark:text-white">
                 Scaffy
               </span>
             </Link>
@@ -243,7 +253,7 @@ export function TaskPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1440px] px-6 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1440px] px-3 py-8 lg:px-4">
         {/* Error Display */}
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-4">
@@ -276,7 +286,7 @@ export function TaskPage() {
         {hasSubmitted && scaffold && parserOutput && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold tracking-tight text-black dark:text-white">
+              <h2 className="text-xl font-semibold tracking-tight text-black dark:text-white">
                 Task Breakdown
               </h2>
               <div className="flex gap-3">
@@ -338,7 +348,7 @@ export function TaskPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6">
                       {/* Example Section */}
                       <div className="rounded-xl border border-gray-200/60 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/50 p-6">
                         <div className="mb-3 flex items-center justify-between">
@@ -468,7 +478,8 @@ export function TaskPage() {
                                       onClick={() =>
                                         fetchConceptExample(
                                           concept,
-                                          task?.description || todo
+                                          task?.description || todo,
+                                          taskIndex
                                         )
                                       }
                                       disabled={
@@ -488,22 +499,22 @@ export function TaskPage() {
                               </div>
 
                               {/* Display concept examples */}
-                              {expandedConcept &&
-                                conceptExamples[expandedConcept] && (
+                              {expandedConcept[taskIndex] &&
+                                conceptExamples[expandedConcept[taskIndex]] && (
                                   <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                                     <div className="flex items-start justify-between mb-2">
                                       <div className="flex items-center gap-2">
                                         <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                                          {expandedConcept}
+                                          {expandedConcept[taskIndex]}
                                         </span>
                                         <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
                                           {conceptExamples[
-                                            expandedConcept
+                                            expandedConcept[taskIndex]
                                           ].example_type.replace("_", " ")}
                                         </span>
                                       </div>
                                       <button
-                                        onClick={() => setExpandedConcept(null)}
+                                        onClick={() => setExpandedConcept((prev) => ({ ...prev, [taskIndex]: null }))}
                                         className="p-0.5 rounded hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-400"
                                       >
                                         <X className="h-3 w-3" />
@@ -511,17 +522,17 @@ export function TaskPage() {
                                     </div>
                                     <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed font-mono bg-white dark:bg-black p-3 rounded border border-blue-200 dark:border-blue-800 overflow-x-auto mb-2">
                                       {
-                                        conceptExamples[expandedConcept]
+                                        conceptExamples[expandedConcept[taskIndex]]
                                           .code_example
                                       }
                                     </pre>
                                     <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
                                       {
-                                        conceptExamples[expandedConcept]
+                                        conceptExamples[expandedConcept[taskIndex]]
                                           .explanation
                                       }
                                     </p>
-                                    {conceptExamples[expandedConcept]
+                                    {conceptExamples[expandedConcept[taskIndex]]
                                       .comparison_to_known && (
                                       <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
                                         <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
@@ -529,7 +540,7 @@ export function TaskPage() {
                                         </p>
                                         <p className="text-xs text-gray-600 dark:text-gray-400">
                                           {
-                                            conceptExamples[expandedConcept]
+                                            conceptExamples[expandedConcept[taskIndex]]
                                               .comparison_to_known
                                           }
                                         </p>
@@ -538,59 +549,6 @@ export function TaskPage() {
                                   </div>
                                 )}
                             </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Code Structure/Template Section */}
-                      <div className="rounded-xl border border-gray-200/60 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/50 p-6">
-                        <h4 className="mb-3 text-sm font-semibold text-black dark:text-white">
-                          Code Structure
-                        </h4>
-
-                        {/* TODOs for this task */}
-                        {scaffold.task_todos &&
-                          scaffold.task_todos[`task_${taskIndex}`] &&
-                          scaffold.task_todos[`task_${taskIndex}`].length >
-                            0 && (
-                            <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                              <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
-                                TODOs:
-                              </div>
-                              <ol className="space-y-1">
-                                {scaffold.task_todos[`task_${taskIndex}`].map(
-                                  (todo, idx) => (
-                                    <li
-                                      key={idx}
-                                      className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300"
-                                    >
-                                      <span className="flex-shrink-0 text-blue-600 dark:text-blue-400 font-semibold">
-                                        {idx + 1}.
-                                      </span>
-                                      <span className="flex-1">{todo}</span>
-                                    </li>
-                                  )
-                                )}
-                              </ol>
-                            </div>
-                          )}
-
-                        {codeStructure ? (
-                          <div className="space-y-2">
-                            <pre className="text-xs text-gray-800 dark:text-gray-300 whitespace-pre-wrap leading-relaxed font-mono bg-white dark:bg-black p-4 rounded-lg border border-gray-200 dark:border-gray-800 overflow-x-auto max-h-[400px] overflow-y-auto">
-                              {codeStructure}
-                            </pre>
-                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 italic">
-                              Fill in the TODO sections and complete the
-                              structure above
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-8 text-center">
-                            <Code2 className="h-10 w-10 text-gray-400 dark:text-gray-600 mb-2" />
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Code structure template will appear here
-                            </p>
                           </div>
                         )}
                       </div>

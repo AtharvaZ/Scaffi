@@ -12,8 +12,6 @@ logger = logging.getLogger(__name__)
 from pyd_models.schemas import (
     AssignmentSchema,
     TaskBreakdownSchema,
-    BoilerPlateCodeSchema,
-    StarterCode,
     HintResponseSchema,
     HintSchema,
     CodeExecutionRequest,
@@ -227,23 +225,40 @@ async def get_concept_example(request: ConceptExampleRequest):
 async def run_code(request: CodeExecutionRequest):
     """
     Execute student code and return results
-    
+
     Supports Python and JavaScript execution with:
     - 5 second timeout
     - Output capture
     - Error handling
+    - Optional test case execution
     """
     try:
         logger.info(f"Executing {request.language} code ({len(request.code)} characters)")
-        
+
         code_runner = get_code_runner()
-        # Pass stdin if provided, otherwise use default test values
-        result = code_runner.run_code(request.code, request.language, stdin=request.stdin)
-        
+
+        # If test cases are provided, run them
+        if request.test_cases and len(request.test_cases) > 0:
+            logger.info(f"Running with {len(request.test_cases)} test cases")
+            # Convert TestCase objects to dicts
+            test_cases_dicts = []
+            for tc in request.test_cases:
+                if hasattr(tc, 'model_dump'):  # Pydantic v2
+                    test_cases_dicts.append(tc.model_dump())
+                elif hasattr(tc, 'dict'):  # Pydantic v1
+                    test_cases_dicts.append(tc.dict())
+                else:
+                    test_cases_dicts.append(tc)
+
+            result = code_runner.run_with_tests(request.code, request.language, test_cases_dicts)
+        else:
+            # Pass stdin if provided, otherwise use default test values
+            result = code_runner.run_code(request.code, request.language, stdin=request.stdin)
+
         logger.info(f"Execution completed: success={result['success']}, exit_code={result['exit_code']}")
-        
+
         return CodeExecutionResult(**result)
-    
+
     except Exception as e:
         logger.error(f"Code execution error: {e}")
         raise HTTPException(

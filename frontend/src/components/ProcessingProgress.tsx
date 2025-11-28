@@ -21,7 +21,7 @@ export function ProcessingProgress({ stage, tasksTotal = 0, tasksCompleted = 0 }
         <div className="space-y-6">
           <div className="text-center mb-8">
             <Loader2 className="h-12 w-12 animate-spin text-black dark:text-primary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-black dark:text-foreground mb-2">
+            <h3 className="text-base font-semibold text-black dark:text-foreground mb-2">
               Processing Your Assignment
             </h3>
             <p className="text-sm text-gray-600 dark:text-muted-foreground">

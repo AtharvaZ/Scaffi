@@ -12,9 +12,10 @@ interface GetConceptExampleProps {
   knownLanguage?: string;
   onClose: () => void;
   selectedTaskForExamples?: number;
+  currentFileTasks?: number[]; // Global task indices for current file
 }
 
-export function GetConceptExample({ language, currentTask, scaffold, knownLanguage, onClose, selectedTaskForExamples }: GetConceptExampleProps) {
+export function GetConceptExample({ language, currentTask, scaffold, knownLanguage, onClose, selectedTaskForExamples, currentFileTasks }: GetConceptExampleProps) {
   const [selectedConcept, setSelectedConcept] = useState<string | null>(null);
   const [example, setExample] = useState<{
     concept: string;
@@ -28,9 +29,16 @@ export function GetConceptExample({ language, currentTask, scaffold, knownLangua
   // Use selected task for examples if provided, otherwise use current task
   const taskIndex = selectedTaskForExamples !== undefined ? selectedTaskForExamples : currentTask;
 
-  // Get concepts for the selected task
-  const concepts = scaffold?.task_concepts?.[`task_${taskIndex}`] || [];
-  const taskDescription = scaffold?.todo_list?.[taskIndex] || 'Current task';
+  // Get the global task index for the selected task
+  let globalTaskIndex = taskIndex;
+  if (currentFileTasks && currentFileTasks.length > 0) {
+    // Multi-file mode: convert local task index to global task index
+    globalTaskIndex = currentFileTasks[taskIndex] || taskIndex;
+  }
+
+  // Get concepts for the selected task only
+  const concepts: string[] = scaffold?.task_concepts?.[`task_${globalTaskIndex}`] || [];
+  const taskDescription = scaffold?.todo_list?.[globalTaskIndex] || 'Current task';
 
   const handleGetExample = async (concept: string) => {
     setSelectedConcept(concept);
@@ -68,11 +76,11 @@ export function GetConceptExample({ language, currentTask, scaffold, knownLangua
             <Code2 className="h-4 w-4 text-black dark:text-foreground" />
             <h3 className="text-sm font-semibold tracking-tight text-black dark:text-foreground">Concept Examples</h3>
           </div>
-          {selectedTaskForExamples !== undefined && selectedTaskForExamples !== currentTask && (
+          {selectedTaskForExamples !== undefined && selectedTaskForExamples !== currentTask ? (
             <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
               Task {taskIndex + 1}
             </p>
-          )}
+          ) : null}
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
           <X className="h-4 w-4" />

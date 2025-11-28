@@ -1,6 +1,7 @@
 import apiCall from "./client";
 import type {
   TaskBreakdownSchema,
+  TaskSchema,
   StarterCode,
   HintSchema,
   ParserOutput,
@@ -38,13 +39,15 @@ export async function parseAssignment(
   });
 }
 
-// Generate starter code - matches backend /generate-starter-code endpoint
+// Generate starter code - matches backend /generate-starter-code endpoint (UPDATED FOR MULTI-FILE)
 export async function generateStarterCodeBatch(
   tasks: Array<{
     task_description: string;
     programming_language: string;
     concepts: string[];
     known_language?: string;
+    experience_level?: string;
+    filename: string;  // NEW: required for multi-file support
   }>
 ): Promise<{
   tasks: StarterCode[];
@@ -66,7 +69,8 @@ export async function getHint(
   previousHints: string[],
   helpCount: number,
   knownLanguage?: string,
-  targetLanguage?: string
+  targetLanguage?: string,
+  experienceLevel?: string
 ): Promise<HintSchema> {
   // Ensure all values are serializable
   const payload = {
@@ -80,6 +84,7 @@ export async function getHint(
     help_count: Number(helpCount) || 1,
     known_language: knownLanguage ? String(knownLanguage) : null,
     target_language: targetLanguage ? String(targetLanguage) : null,
+    experience_level: experienceLevel ? String(experienceLevel) : null,
   };
 
   return apiCall<HintSchema>("/get-hint", {
@@ -92,7 +97,8 @@ export async function getHint(
 export async function runCode(
   code: string,
   language: string,
-  stdin?: string
+  stdin?: string,
+  testCases?: any[]
 ): Promise<RunnerResult> {
   return apiCall<RunnerResult>("/run-code", {
     method: "POST",
@@ -100,11 +106,12 @@ export async function runCode(
       code,
       language,
       stdin: stdin || null,
+      test_cases: testCases || null,
     }),
   });
 }
 
-// Helper function to parse assignment and generate starter code for all tasks
+// Helper function to parse assignment and generate starter code for all tasks (UPDATED FOR MULTI-FILE)
 export async function parseAndScaffold(
   assignmentText: string,
   targetLanguage: string,
@@ -128,16 +135,48 @@ export async function parseAndScaffold(
     experienceLevel
   );
 
-  // Build batch request
-  const batchRequest = taskBreakdown.tasks.map((task) => ({
+  // Extract all tasks from files structure
+  const allTasksWithFiles: Array<{task: TaskSchema, filename: string}> = [];
+  if (taskBreakdown.files) {
+    // New format with files
+    for (const file of taskBreakdown.files) {
+      for (const task of file.tasks) {
+        allTasksWithFiles.push({ task, filename: file.filename });
+      }
+    }
+  } else if (taskBreakdown.tasks) {
+    // Legacy format - single file
+    const extensionMap: Record<string, string> = {
+      'python': 'py',
+      'javascript': 'js',
+      'java': 'java',
+      'csharp': 'cs',
+      'c': 'c',
+      'c++': 'cpp',
+      'typescript': 'ts'
+    };
+    const extension = extensionMap[targetLanguage] || 'txt';
+
+    for (const task of taskBreakdown.tasks) {
+      allTasksWithFiles.push({
+        task,
+        filename: `main.${extension}`
+      });
+    }
+  }
+
+  // Build batch request with filename
+  const batchRequest = allTasksWithFiles.map(({ task, filename }) => ({
     task_description: task.description,
     programming_language: targetLanguage,
     concepts: task.concepts,
     known_language: knownLanguage || undefined,
+    experience_level: experienceLevel,
+    filename: filename,
   }));
 
   // Simulate smooth progress during batch generation
-  const totalTasks = taskBreakdown.tasks.length;
+  const totalTasks = allTasksWithFiles.length;
   let currentProgress = 0;
 
   if (onProgress) onProgress("generating", 0, totalTasks);
@@ -159,9 +198,9 @@ export async function parseAndScaffold(
     if (onProgress) onProgress("generating", totalTasks, totalTasks);
 
     // Verify we have the same number of tasks
-    if (starterCodes.length !== taskBreakdown.tasks.length) {
+    if (starterCodes.length !== allTasksWithFiles.length) {
       console.error(
-        `Mismatch: Expected ${taskBreakdown.tasks.length} starter codes, got ${starterCodes.length}`
+        `Mismatch: Expected ${allTasksWithFiles.length} starter codes, got ${starterCodes.length}`
       );
     }
 
@@ -171,33 +210,41 @@ export async function parseAndScaffold(
       console.log(`task_${index}:`, code.todos);
     });
 
-    // Combine all task code snippets into one file
-    const combinedCode = starterCodes
-      .map((code, index) => {
-        const taskNumber = index + 1;
-        return `# ===== TASK ${taskNumber}: ${taskBreakdown.tasks[index].title} =====\n${code.code_snippet}`;
-      })
+    // Group code snippets by filename
+    const fileContents: Record<string, string> = {};
+    starterCodes.forEach((code, index) => {
+      const filename = code.filename;
+      const taskNumber = index + 1;
+      const taskTitle = allTasksWithFiles[index].task.title;
+      const taskCode = `# ===== TASK ${taskNumber}: ${taskTitle} =====\n${code.code_snippet}`;
+
+      if (fileContents[filename]) {
+        fileContents[filename] += `\n\n${taskCode}`;
+      } else {
+        fileContents[filename] = taskCode;
+      }
+    });
+
+    // For single-file view in editor, combine all files
+    const combinedCode = Object.entries(fileContents)
+      .map(([filename, content]) => `# ===== FILE: ${filename} =====\n${content}`)
       .join("\n\n");
 
     // Flatten all todos from all tasks into one array
     const allTodos = starterCodes.flatMap((code) => code.todos || []);
 
-    // Rest of your scaffold package construction
+    // Build scaffold package
     const scaffoldPackage: ScaffoldPackage = {
-      todo_list: taskBreakdown.tasks.map((task) => task.description),
-      starter_files: starterCodes.reduce((acc, code, index) => {
-        acc[`task_${index + 1}.${targetLanguage === "python" ? "py" : "js"}`] =
-          code.code_snippet;
-        return acc;
-      }, {} as Record<string, string>),
+      todo_list: allTasksWithFiles.map((item) => item.task.description),
+      starter_files: fileContents,  // Now organized by actual filenames
       unit_tests: {},
       per_task_hints: {},
       code_snippet: combinedCode, // Combined code for editor
       instructions: starterCodes[0]?.instructions,
       todos: allTodos, // All todos flattened
       concept_examples: starterCodes[0]?.concept_examples,
-      task_concepts: taskBreakdown.tasks.reduce((acc, task, index) => {
-        acc[`task_${index}`] = task.concepts;
+      task_concepts: allTasksWithFiles.reduce((acc, item, index) => {
+        acc[`task_${index}`] = item.task.concepts;
         return acc;
       }, {} as Record<string, string[]>),
       task_concept_examples: starterCodes.reduce((acc, code, index) => {
@@ -213,9 +260,18 @@ export async function parseAndScaffold(
     };
 
     console.log("Final task_todos:", scaffoldPackage.task_todos);
+    console.log("Files created:", Object.keys(fileContents));
+
+    // Convert taskBreakdown to proper TaskBreakdownSchema format
+    const parserOutput: TaskBreakdownSchema = {
+      overview: taskBreakdown.overview,
+      total_estimated_time: taskBreakdown.total_estimated_time,
+      files: taskBreakdown.files || [],
+      tests: taskBreakdown.tests,
+    };
 
     return {
-      parser_output: taskBreakdown,
+      parser_output: parserOutput,
       scaffold_package: scaffoldPackage,
     };
   } catch (error) {
@@ -293,7 +349,8 @@ export async function chatWithAI(
   scaffold?: ScaffoldPackage,
   previousHints: string[] = [],
   helpCount: number = 0,
-  knownLanguage?: string
+  knownLanguage?: string,
+  experienceLevel?: string
 ): Promise<{ response: string }> {
   // Extract task description and concepts from scaffold if available
   const taskIndex = parseInt(taskId) || 0;
@@ -311,7 +368,8 @@ export async function chatWithAI(
     previousHints,
     helpCount + 1, // Increment help count
     knownLanguage,
-    language // target_language
+    language, // target_language
+    experienceLevel
   );
 
   return {

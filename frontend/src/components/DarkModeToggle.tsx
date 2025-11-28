@@ -8,15 +8,15 @@ export function DarkModeToggle() {
   return (
     <Button
       variant="ghost"
-      size="sm"
+      size="default"
       onClick={toggleDarkMode}
       className="relative"
       aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDarkMode ? (
-        <Sun className="h-4 w-4" />
+        <Sun className="h-6 w-6" />
       ) : (
-        <Moon className="h-4 w-4" />
+        <Moon className="h-6 w-6" />
       )}
     </Button>
   );

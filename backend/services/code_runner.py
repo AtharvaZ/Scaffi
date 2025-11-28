@@ -23,6 +23,9 @@ class CodeRunner:
             'javascript': 'javascript',
             'js': 'javascript',
             'java': 'java',
+            'csharp': 'csharp',
+            'c#': 'csharp',
+            'cs': 'csharp',
             'c++': 'cpp',
             'c': 'c',
             'typescript': 'typescript'
@@ -151,7 +154,108 @@ class CodeRunner:
                 "exit_code": -1,
                 "execution_time": "error"
             }
-    
+
+    def run_with_tests(self, code: str, language: str, test_cases: list) -> Dict[str, Any]:
+        """
+        Run code with test cases and return results
+
+        Args:
+            code: Student's code
+            language: Programming language
+            test_cases: List of test case dicts with function_name, input_data, expected_output
+
+        Returns:
+            Dict with test_results, tests_passed, tests_failed, plus regular execution info
+        """
+        try:
+            from pyd_models.schemas import TestResult
+
+            test_results = []
+            tests_passed = 0
+            tests_failed = 0
+
+            logger.info(f"Running {len(test_cases)} test cases for {language} code")
+
+            for test_case in test_cases:
+                try:
+                    test_name = test_case.get('test_name', 'Unknown Test')
+                    function_name = test_case.get('function_name', '')
+                    input_data = test_case.get('input_data', '')
+                    expected_output = test_case.get('expected_output', '').strip()
+
+                    # Generate test code based on language
+                    if language.lower() == 'python':
+                        test_code = f"{code}\n\n# Test execution\nresult = {function_name}({input_data})\nprint(result)"
+                    elif language.lower() in ['javascript', 'js']:
+                        test_code = f"{code}\n\n// Test execution\nconst result = {function_name}({input_data});\nconsole.log(result);"
+                    else:
+                        # For other languages, try a generic approach
+                        test_code = f"{code}\n\n{function_name}({input_data});"
+
+                    # Run the test
+                    result = self.run_code(test_code, language, stdin="")
+
+                    # Get actual output and clean it
+                    actual_output = result.get('output', '').strip()
+
+                    # Check if test passed (compare outputs as strings)
+                    passed = actual_output == expected_output
+
+                    if passed:
+                        tests_passed += 1
+                    else:
+                        tests_failed += 1
+
+                    # Create test result
+                    test_result = TestResult(
+                        test_name=test_name,
+                        passed=passed,
+                        input_data=input_data,
+                        expected_output=expected_output,
+                        actual_output=actual_output,
+                        error=result.get('error') if result.get('error') else None
+                    )
+                    test_results.append(test_result)
+
+                except Exception as e:
+                    logger.error(f"Error running test case '{test_name}': {e}")
+                    test_results.append(TestResult(
+                        test_name=test_case.get('test_name', 'Unknown Test'),
+                        passed=False,
+                        input_data=test_case.get('input_data', ''),
+                        expected_output=test_case.get('expected_output', ''),
+                        actual_output='',
+                        error=f"Test execution error: {str(e)}"
+                    ))
+                    tests_failed += 1
+
+            # Also run the code normally to get any compilation/syntax errors
+            normal_result = self.run_code(code, language, stdin="")
+
+            return {
+                "success": tests_passed > 0 and tests_failed == 0,
+                "output": normal_result.get('output', ''),
+                "error": normal_result.get('error', ''),
+                "exit_code": normal_result.get('exit_code', 0),
+                "execution_time": normal_result.get('execution_time', ''),
+                "test_results": test_results,
+                "tests_passed": tests_passed,
+                "tests_failed": tests_failed
+            }
+
+        except Exception as e:
+            logger.error(f"Error in run_with_tests: {e}", exc_info=True)
+            return {
+                "success": False,
+                "output": "",
+                "error": f"Test execution error: {str(e)}",
+                "exit_code": -1,
+                "execution_time": "error",
+                "test_results": [],
+                "tests_passed": 0,
+                "tests_failed": len(test_cases)
+            }
+
     def run_python(self, code: str, stdin: Optional[str] = None) -> Dict[str, Any]:
         """Run Python code"""
         return self.run_code(code, "python", stdin)

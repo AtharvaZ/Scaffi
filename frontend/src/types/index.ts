@@ -10,26 +10,47 @@ export interface TaskSchema {
   concepts: string[];
 }
 
-// Task Breakdown Schema (from backend)
+// NEW: File Schema for multi-file support
+export interface FileSchema {
+  filename: string;
+  purpose: string;
+  tasks: TaskSchema[];
+}
+
+// Test Case Schema (from backend)
+export interface TestCase {
+  test_name: string;
+  function_name: string;
+  input_data: string;
+  expected_output: string;
+  description: string;
+  test_type: "normal" | "edge" | "error";
+}
+
+// Task Breakdown Schema (from backend) - UPDATED FOR MULTI-FILE
 export interface TaskBreakdownSchema {
-  tasks: TaskSchema[];
   overview: string;
   total_estimated_time: string;
+  files: FileSchema[];  // Changed from: tasks: TaskSchema[]
+  tests?: TestCase[];
 }
 
-// Legacy ParserOutput for compatibility
+// Legacy ParserOutput for compatibility - keeping both formats
 export interface ParserOutput {
-  tasks: TaskSchema[];
+  tasks?: TaskSchema[];  // Legacy format
+  files?: FileSchema[];  // New format
   overview: string;
   total_estimated_time: string;
+  tests?: TestCase[];
 }
 
-// Starter Code Schema (from backend)
+// Starter Code Schema (from backend) - UPDATED FOR MULTI-FILE
 export interface StarterCode {
   code_snippet: string;
   instructions: string;
   todos: string[];
   concept_examples?: Record<string, string>;
+  filename: string;  // NEW: which file this task belongs to
 }
 
 // Scaffold Package (adapted from StarterCode for compatibility)
@@ -54,6 +75,16 @@ export interface HintSchema {
   example_code?: string;
 }
 
+// Test Result (from backend)
+export interface TestResult {
+  test_name: string;
+  passed: boolean;
+  input_data: string;
+  expected_output: string;
+  actual_output: string;
+  error?: string;
+}
+
 export interface FailedTest {
   test_name: string;
   error_message: string;
@@ -61,15 +92,14 @@ export interface FailedTest {
 }
 
 export interface RunnerResult {
+  success: boolean;
+  output: string;
+  error: string;
   exit_code: number;
-  tests_passed: number;
-  tests_failed: number;
-  failed_tests: FailedTest[];
-  runtime_ms: number;
-  stdout: string;
-  stderr: string;
-  timeout?: boolean;
-  security_violation?: boolean;
+  execution_time: string;
+  test_results?: TestResult[];
+  tests_passed?: number;
+  tests_failed?: number;
 }
 
 export interface FeedbackResponse {
@@ -102,17 +132,14 @@ export interface CodeEditorProps {
   language: string;
   onChange: (code: string) => void;
   readOnly?: boolean;
+  scrollToTaskIndex?: number;
+  todos?: string[];
 }
 
 export interface RunButtonProps {
   onClick: () => void;
   loading: boolean;
   disabled: boolean;
-}
-
-export interface TestResultsProps {
-  results: RunnerResult;
-  onRequestFeedback: () => void;
 }
 
 export interface FeedbackCardProps {
@@ -142,6 +169,7 @@ export interface AppState {
   assignmentText: string;
   language: string;
   proficientLanguage: string;
+  experienceLevel: string;
   parserOutput: ParserOutput | null;
   
   // Scaffold

@@ -12,12 +12,13 @@ interface GetHintProps {
   scaffold?: ScaffoldPackage;
   currentTodoIndex?: number;
   knownLanguage?: string;
+  experienceLevel?: string;
   onClose: () => void;
   autoTrigger?: boolean;
   autoTriggerQuestion?: string;
 }
 
-export function GetHint({ code, language, currentTask, scaffold, currentTodoIndex = 0, knownLanguage, onClose, autoTrigger = false, autoTriggerQuestion }: GetHintProps) {
+export function GetHint({ code, language, currentTask, scaffold, currentTodoIndex = 0, knownLanguage, experienceLevel, onClose, autoTrigger = false, autoTriggerQuestion }: GetHintProps) {
   const [hint, setHint] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [helpCount, setHelpCount] = useState(0);
@@ -61,7 +62,8 @@ export function GetHint({ code, language, currentTask, scaffold, currentTodoInde
           cleanPreviousHints,
           helpCount + 1,
           cleanKnownLanguage,
-          cleanTargetLanguage
+          cleanTargetLanguage,
+          experienceLevel
         ),
         'Failed to get hint'
       );

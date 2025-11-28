@@ -30,7 +30,8 @@ class LiveHelperAgent:
             previous_hints=inputData.previous_hints,
             help_count=inputData.help_count,
             known_language=inputData.known_language,
-            target_language=inputData.target_language
+            target_language=inputData.target_language,
+            experience_level=inputData.experience_level
         )
 
         last_error = None

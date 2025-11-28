@@ -2,12 +2,27 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AppState, ParserOutput, ScaffoldPackage, RunnerResult, FeedbackResponse } from '../types';
 
+// Per-file session data
+export interface FileSession {
+  filename: string;
+  code: string;
+  completedTodos: Set<number>;
+  testResults: any[] | null;
+  lastRunResult: RunnerResult | null;
+}
+
 interface AppStore extends AppState {
+  // File session management
+  currentFile: string;
+  fileSessions: Map<string, FileSession>;
+
   // Actions
   setAssignmentText: (text: string) => void;
   setLanguage: (language: string) => void;
   setProficientLanguage: (language: string) => void;
+  setExperienceLevel: (level: string) => void;
   setParserOutput: (output: ParserOutput | null) => void;
+  updateTestCases: (testCases: any[]) => void;
   setScaffold: (scaffold: ScaffoldPackage | null) => void;
   setCurrentTask: (task: number) => void;
   addCompletedTask: (task: number) => void;
@@ -26,6 +41,16 @@ interface AppStore extends AppState {
   setCompletedTasks: (tasks: Set<number>) => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+
+  // File session actions
+  setCurrentFile: (filename: string) => void;
+  initializeFileSessions: (filenames: string[], initialCodes: Record<string, string>) => void;
+  saveCurrentFileSession: () => void;
+  loadFileSession: (filename: string) => void;
+  updateFileSessionCode: (filename: string, code: string) => void;
+  toggleFileSessionTodo: (filename: string, todoIndex: number) => void;
+  updateFileSessionTestResults: (filename: string, testResults: any[], runResult: RunnerResult) => void;
+
   reset: () => void;
 }
 
@@ -41,6 +66,7 @@ const initialState: AppState = {
   assignmentText: '',
   language: 'python',
   proficientLanguage: 'python',
+  experienceLevel: 'intermediate',
   parserOutput: null,
   scaffold: null,
   currentTask: 0,
@@ -59,16 +85,26 @@ const initialState: AppState = {
   error: null,
 };
 
+const initialFileSessionState = {
+  currentFile: '',
+  fileSessions: new Map<string, FileSession>(),
+};
+
 export const useAppStore = create<AppStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
+      ...initialFileSessionState,
       isDarkMode: false,
-      
+
       setAssignmentText: (text) => set({ assignmentText: text }),
       setLanguage: (language) => set({ language }),
       setProficientLanguage: (language) => set({ proficientLanguage: language }),
+      setExperienceLevel: (level) => set({ experienceLevel: level }),
       setParserOutput: (output) => set({ parserOutput: output }),
+      updateTestCases: (testCases) => set((state) => ({
+        parserOutput: state.parserOutput ? { ...state.parserOutput, tests: testCases } : null
+      })),
       setScaffold: (scaffold) => set({ scaffold }),
       setCurrentTask: (task) => set({ currentTask: task, attemptCount: 0 }),
       addCompletedTask: (task) =>
@@ -111,32 +147,182 @@ export const useAppStore = create<AppStore>()(
           return { isDarkMode: newDarkMode };
         });
       },
-      reset: () => set({ ...initialState, studentId: generateStudentId() }),
+
+      // File session management actions
+      setCurrentFile: (filename) => set({ currentFile: filename }),
+
+      initializeFileSessions: (filenames, initialCodes) => {
+        const sessions = new Map<string, FileSession>();
+        filenames.forEach((filename) => {
+          sessions.set(filename, {
+            filename,
+            code: initialCodes[filename] || '',
+            completedTodos: new Set<number>(),
+            testResults: null,
+            lastRunResult: null,
+          });
+        });
+        const firstFile = filenames[0] || '';
+        set({
+          fileSessions: sessions,
+          currentFile: firstFile,
+          studentCode: initialCodes[firstFile] || '',
+        });
+      },
+
+      saveCurrentFileSession: () => {
+        const state = get();
+        if (!state.currentFile) return;
+
+        const sessions = new Map(state.fileSessions);
+        const currentSession = sessions.get(state.currentFile);
+        if (currentSession) {
+          sessions.set(state.currentFile, {
+            ...currentSession,
+            code: state.studentCode,
+            completedTodos: new Set(state.completedTasks),
+            testResults: state.runnerResult?.test_results || null,
+            lastRunResult: state.runnerResult,
+          });
+          set({ fileSessions: sessions });
+        }
+      },
+
+      loadFileSession: (filename) => {
+        const state = get();
+        const session = state.fileSessions.get(filename);
+        if (session) {
+          set({
+            currentFile: filename,
+            studentCode: session.code,
+            // Don't replace completedTasks - keep it global for progress bar
+            runnerResult: session.lastRunResult,
+          });
+        }
+      },
+
+      updateFileSessionCode: (filename, code) => {
+        const state = get();
+        const sessions = new Map(state.fileSessions);
+        const session = sessions.get(filename);
+        if (session) {
+          sessions.set(filename, { ...session, code });
+          set({ fileSessions: sessions });
+        }
+      },
+
+      toggleFileSessionTodo: (filename, todoIndex) => {
+        const state = get();
+        const sessions = new Map(state.fileSessions);
+        const session = sessions.get(filename);
+        if (session) {
+          const newCompletedTodos = new Set(session.completedTodos);
+          if (newCompletedTodos.has(todoIndex)) {
+            newCompletedTodos.delete(todoIndex);
+          } else {
+            newCompletedTodos.add(todoIndex);
+          }
+          sessions.set(filename, { ...session, completedTodos: newCompletedTodos });
+          set({ fileSessions: sessions });
+        }
+      },
+
+      updateFileSessionTestResults: (filename, testResults, runResult) => {
+        const state = get();
+        const sessions = new Map(state.fileSessions);
+        const session = sessions.get(filename);
+        if (session) {
+          sessions.set(filename, {
+            ...session,
+            testResults,
+            lastRunResult: runResult,
+          });
+          set({ fileSessions: sessions });
+        }
+      },
+
+      reset: () => set({ ...initialState, ...initialFileSessionState, studentId: generateStudentId() }),
     }),
     {
       name: 'scaffy-app-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        // User info
         studentCode: state.studentCode,
         studentId: state.studentId,
         assignmentId: state.assignmentId,
+
+        // Assignment details
+        assignmentText: state.assignmentText,
         language: state.language,
         proficientLanguage: state.proficientLanguage,
-        // Removed completedTasks from persistence - tasks won't be saved between sessions
+        experienceLevel: state.experienceLevel,
+
+        // Generated content - save the full parser output and scaffold
+        parserOutput: state.parserOutput,
+        scaffold: state.scaffold,
+
+        // Progress tracking
+        currentTask: state.currentTask,
+        completedTasks: Array.from(state.completedTasks), // Convert Set to Array for JSON
+
+        // Test results
+        runnerResult: state.runnerResult,
+
+        // Multi-file support
+        currentFile: state.currentFile,
+        fileSessions: Array.from(state.fileSessions.entries()).map(([filename, session]) => ({
+          filename,
+          code: session.code,
+          completedTodos: Array.from(session.completedTodos), // Convert Set to Array
+          testResults: session.testResults,
+          lastRunResult: session.lastRunResult,
+        })),
+
+        // UI preferences
         isDarkMode: state.isDarkMode,
+
+        // Timestamp for data freshness
+        lastSaved: Date.now(),
       }),
       onRehydrateStorage: () => (state) => {
-        if (state && Array.isArray(state.completedTasks)) {
+        if (!state) return;
+
+        // Convert completedTasks array back to Set
+        if (Array.isArray(state.completedTasks)) {
           state.completedTasks = new Set(state.completedTasks);
-        } else if (state) {
+        } else {
           state.completedTasks = new Set();
         }
+
+        // Convert fileSessions array back to Map
+        if (Array.isArray(state.fileSessions)) {
+          const sessionsMap = new Map<string, FileSession>();
+          state.fileSessions.forEach((session: any) => {
+            sessionsMap.set(session.filename, {
+              ...session,
+              completedTodos: new Set(session.completedTodos || []),
+            });
+          });
+          state.fileSessions = sessionsMap;
+        } else {
+          state.fileSessions = new Map();
+        }
+
         // Apply dark mode on rehydration
-        if (state?.isDarkMode) {
+        if (state.isDarkMode) {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');
         }
+
+        console.log('📦 Restored data from localStorage:', {
+          assignmentId: state.assignmentId,
+          language: state.language,
+          tasksCount: state.scaffold?.todo_list?.length || 0,
+          filesCount: state.fileSessions.size,
+          completedTasks: state.completedTasks.size,
+        });
       },
     }
   )
