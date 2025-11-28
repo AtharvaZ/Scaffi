@@ -5,12 +5,12 @@
 No more "Where do I even start!!!???" Just focused work and actual learning.
 Scaffy breaks down programming assignments into clear, manageable tasks—
 with 
--Starter code with TODOs
--Concept specific examples
--Context smart hints
--Instant feedback
--Validation tests
--Downloadable files
+- *Starter code with TODOs*
+- *Concept-specific examples*
+- *Context-smart hints*
+- *Instant feedback*
+- *Validation tests*
+- *Downloadable files*
 
 ## 🚀 Features
 
