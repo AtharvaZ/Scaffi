@@ -188,6 +188,28 @@ class CodeRunner:
                         test_code = f"{code}\n\n# Test execution\nresult = {function_name}({input_data})\nprint(result)"
                     elif language.lower() in ['javascript', 'js']:
                         test_code = f"{code}\n\n// Test execution\nconst result = {function_name}({input_data});\nconsole.log(result);"
+                    elif language.lower() in ['csharp', 'c#', 'cs']:
+                        # For C#, wrap in a proper Main method
+                        test_code = f"""{code}
+
+// Test execution
+class TestRunner {{
+    static void Main(string[] args) {{
+        var result = {function_name}({input_data});
+        Console.WriteLine(result);
+    }}
+}}"""
+                    elif language.lower() in ['java']:
+                        # For Java, wrap in a proper Main method
+                        test_code = f"""{code}
+
+// Test execution
+class TestRunner {{
+    public static void main(String[] args) {{
+        var result = {function_name}({input_data});
+        System.out.println(result);
+    }}
+}}"""
                     else:
                         # For other languages, try a generic approach
                         test_code = f"{code}\n\n{function_name}({input_data});"

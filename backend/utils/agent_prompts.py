@@ -260,17 +260,82 @@ IMPORTANT:
 - Start with {{ and end with }}
 - Escape all quotes and backslashes properly
 
-IMPORTANT - USE CORRECT COMMENT SYNTAX FOR EACH LANGUAGE:
-- Python: # TODO: description
-- JavaScript/TypeScript/Java/C++/C#/Go/Rust: // TODO: description
-- HTML: <!-- TODO: description -->
-- CSS: /* TODO: description */
+IMPORTANT - USE CORRECT COMMENT SYNTAX FOR EACH LANGUAGE {task['programming_language']}:
+- Python: # for ALL comments (task headers and TODOs)
+- JavaScript/TypeScript/Java/C++/C#/Go/Rust: // for ALL comments (task headers and TODOs)
+- HTML: <!-- --> for ALL comments
+- CSS: /* */ for ALL comments
 
-EXAMPLE TODO COMMENT STYLES BY LANGUAGE:
-Python: # TODO: Implement input validation here
-JavaScript/C++/Java/C#: // TODO: Implement input validation here
-HTML: <!-- TODO: Implement input validation here -->
-CSS: /* TODO: Implement input validation here */
+EXAMPLE COMMENT STYLES BY LANGUAGE:
+Python:
+  # Task 1: Implement input validation
+  # TODO: Implement input validation here
+
+JavaScript/C++/Java/C#/Go/Rust:
+  // Task 1: Implement input validation
+  // TODO: Implement input validation here
+
+HTML:
+  <!-- Task 1: Implement input validation -->
+  <!-- TODO: Implement input validation here -->
+
+CSS:
+  /* Task 1: Implement input validation */
+  /* TODO: Implement input validation here */
+
+CRITICAL: For C#, NEVER use # for any comments - always use //
+
+IMPORTANT - GENERATE VALID, COMPILABLE CODE:
+- Ensure all syntax is correct for the target language
+- For C#: ALL methods MUST be inside a class - never define methods at top level
+- For C#: Use proper access modifiers (public, private, static, etc.)
+- For C#: Use proper type declarations and complete method signatures
+- For C#: Use proper namespace and class structure
+- For C#: If adding new methods to existing class, place them INSIDE the class braces
+- For C#: NEVER put methods outside of class definitions
+- For C#: Avoid incomplete or placeholder syntax
+- Test that your generated code would compile successfully
+- All method signatures must be complete with return types and parameters
+
+IMPORTANT - PRESERVE EXISTING CODE STRUCTURE:
+- If the assignment text or file includes existing code structure (classes, namespaces, etc.), USE that structure
+- Add your TODO comments and method signatures INSIDE the provided structure
+- Do NOT create new classes if one already exists in the provided code
+- Place new methods inside existing classes at the appropriate location
+- Maintain the same indentation and style as the provided code
+
+EXAMPLE CORRECT C# STRUCTURE:
+namespace MyNamespace
+{{
+    public class MyClass
+    {{
+        // All methods go HERE inside the class
+        public static void Method1()
+        {{
+            // TODO: Implement
+        }}
+
+        public void Method2()
+        {{
+            // TODO: Implement
+        }}
+    }}
+}}
+
+EXAMPLE INCORRECT C# STRUCTURE (DO NOT DO THIS):
+namespace MyNamespace
+{{
+    public class MyClass
+    {{
+        // Some code
+    }}
+}}
+
+// WRONG: Method outside class
+public static void Method1()
+{{
+    // This will not compile!
+}}
 
 CRITICAL RESPONSE FORMAT:
 - Response must be ONLY valid JSON

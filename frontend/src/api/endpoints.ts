@@ -210,13 +210,34 @@ export async function parseAndScaffold(
       console.log(`task_${index}:`, code.todos);
     });
 
+    // Get language-specific comment syntax
+    const getCommentSyntax = (lang: string): { start: string; end: string } => {
+      const language = lang.toLowerCase();
+      if (language === 'python') {
+        return { start: '#', end: '' };
+      } else if (['javascript', 'typescript', 'java', 'csharp', 'c#', 'cs', 'c++', 'cpp', 'c', 'go', 'rust', 'swift'].includes(language)) {
+        return { start: '//', end: '' };
+      } else if (language === 'html' || language === 'xml') {
+        return { start: '<!--', end: '-->' };
+      } else if (language === 'css') {
+        return { start: '/*', end: '*/' };
+      }
+      // Default to //
+      return { start: '//', end: '' };
+    };
+
+    const commentSyntax = getCommentSyntax(targetLanguage);
+
     // Group code snippets by filename
     const fileContents: Record<string, string> = {};
     starterCodes.forEach((code, index) => {
       const filename = code.filename;
       const taskNumber = index + 1;
       const taskTitle = allTasksWithFiles[index].task.title;
-      const taskCode = `# ===== TASK ${taskNumber}: ${taskTitle} =====\n${code.code_snippet}`;
+      const taskHeader = commentSyntax.end
+        ? `${commentSyntax.start} ===== TASK ${taskNumber}: ${taskTitle} ===== ${commentSyntax.end}`
+        : `${commentSyntax.start} ===== TASK ${taskNumber}: ${taskTitle} =====`;
+      const taskCode = `${taskHeader}\n${code.code_snippet}`;
 
       if (fileContents[filename]) {
         fileContents[filename] += `\n\n${taskCode}`;
@@ -227,7 +248,12 @@ export async function parseAndScaffold(
 
     // For single-file view in editor, combine all files
     const combinedCode = Object.entries(fileContents)
-      .map(([filename, content]) => `# ===== FILE: ${filename} =====\n${content}`)
+      .map(([filename, content]) => {
+        const fileHeader = commentSyntax.end
+          ? `${commentSyntax.start} ===== FILE: ${filename} ===== ${commentSyntax.end}`
+          : `${commentSyntax.start} ===== FILE: ${filename} =====`;
+        return `${fileHeader}\n${content}`;
+      })
       .join("\n\n");
 
     // Flatten all todos from all tasks into one array
@@ -269,6 +295,18 @@ export async function parseAndScaffold(
       files: taskBreakdown.files || [],
       tests: taskBreakdown.tests,
     };
+
+    // Debug: Check if tests were generated
+    if (!taskBreakdown.tests || taskBreakdown.tests.length === 0) {
+      console.warn("⚠️ No test cases were generated for this assignment");
+      console.warn("This may be due to:");
+      console.warn("  - API rate limiting");
+      console.warn("  - Test generation failing on backend");
+      console.warn("  - Assignment not having testable functions");
+      console.warn("Check backend logs for more details");
+    } else {
+      console.log(`✓ Generated ${taskBreakdown.tests.length} test cases`);
+    }
 
     return {
       parser_output: parserOutput,

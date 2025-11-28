@@ -105,7 +105,18 @@ export const useAppStore = create<AppStore>()(
       updateTestCases: (testCases) => set((state) => ({
         parserOutput: state.parserOutput ? { ...state.parserOutput, tests: testCases } : null
       })),
-      setScaffold: (scaffold) => set({ scaffold }),
+      setScaffold: (scaffold) => set({
+        scaffold,
+        // Reset progress when new scaffold is loaded
+        completedTasks: new Set(),
+        fileSessions: new Map(),
+        currentFile: '',
+        studentCode: '',
+        runnerResult: null,
+        feedback: null,
+        showFeedback: false,
+        attemptCount: 0,
+      }),
       setCurrentTask: (task) => set({ currentTask: task, attemptCount: 0 }),
       addCompletedTask: (task) =>
         set((state) => {

@@ -32,7 +32,11 @@ class ParserAgent:
             List of TestCase objects, or empty list if generation fails
         """
         try:
-            logger.info("Generating test cases...")
+            logger.info("=" * 80)
+            logger.info("STARTING TEST GENERATION")
+            logger.info(f"Target Language: {target_language}")
+            logger.info(f"Number of files: {len(files)}")
+            logger.info("=" * 80)
 
             # Convert files to dict if they're FileSchema objects
             files_list = []
@@ -52,6 +56,9 @@ class ParserAgent:
                     logger.info(f"Test generation attempt {attempt + 1}/{self.max_retries}")
                     response_text = self.client.generate_response(prompt, max_tokens=2500)
 
+                    logger.info(f"Received response from AI (length: {len(response_text)} chars)")
+                    logger.debug(f"Response preview: {response_text[:500]}")
+
                     # Extract JSON array from response
                     test_data = extract_json_from_response(response_text)
 
@@ -61,19 +68,21 @@ class ParserAgent:
 
                     # Ensure it's a list
                     if not isinstance(test_data, list):
-                        raise ValueError("Test data must be a list")
+                        raise ValueError(f"Test data must be a list, got {type(test_data)}")
 
                     # Validate and create TestCase objects
                     test_cases = []
-                    for test in test_data:
+                    for idx, test in enumerate(test_data):
                         try:
                             test_case = TestCase(**test)
                             test_cases.append(test_case)
                         except Exception as e:
-                            logger.warning(f"Skipping invalid test case: {e}")
+                            logger.warning(f"Skipping invalid test case {idx}: {e} - Data: {test}")
                             continue
 
-                    logger.info(f"Successfully generated {len(test_cases)} test cases")
+                    logger.info("=" * 80)
+                    logger.info(f"✓ Successfully generated {len(test_cases)} test cases")
+                    logger.info("=" * 80)
                     return test_cases
 
                 except (ValueError, KeyError, json.JSONDecodeError) as e:
@@ -83,11 +92,17 @@ class ParserAgent:
                         prompt += f"\n\nIMPORTANT: Previous attempt failed. Ensure your response is ONLY a valid JSON array starting with [ and ending with ]."
                     continue
 
-            logger.warning("Failed to generate test cases after all retries, returning empty list")
+            logger.error("=" * 80)
+            logger.error("✗ FAILED to generate test cases after all retries")
+            logger.error("Returning empty list")
+            logger.error("=" * 80)
             return []
 
         except Exception as e:
-            logger.error(f"Unexpected error generating test cases: {str(e)}")
+            logger.error("=" * 80)
+            logger.error(f"✗ UNEXPECTED ERROR generating test cases: {str(e)}")
+            logger.error("Returning empty list")
+            logger.error("=" * 80)
             return []  # Return empty list instead of crashing
 
 

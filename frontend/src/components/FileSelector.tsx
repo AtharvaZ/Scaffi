@@ -75,7 +75,7 @@ export function FileSelector({
                   >
                     <span className="font-mono text-sm font-semibold">{filename}</span>
                     {hasChanges && !isSelected && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full" />
+                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-blue-600 rounded-full" />
                     )}
                   </Button>
                   {fileContents && (
