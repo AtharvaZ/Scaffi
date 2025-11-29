@@ -99,31 +99,71 @@ def _extract_json_object(text: str) -> dict | None:
 
 def validate_task_breakdown(data: dict) -> bool:
     """
-    Validate task breakdown structure (UPDATED FOR MULTI-FILE)
+    Validate task breakdown structure (UPDATED FOR MULTI-FILE AND MULTI-CLASS)
     """
+    # Check top-level required fields
     required_fields = ["overview", "total_estimated_time", "files"]
     for field in required_fields:
         if field not in data:
             raise ValueError(f"Missing required field: {field}")
+
+    # Check template_structure field (optional but should be present)
+    if "template_structure" not in data:
+        logger.warning("Missing 'template_structure' field - will use default")
+        data["template_structure"] = {
+            "has_template": False,
+            "variable_names": [],
+            "class_names": []
+        }
 
     if not isinstance(data["files"], list) or len(data["files"]) == 0:
         raise ValueError("Files must be a non-empty list")
 
     # Validate each file
     for file_obj in data["files"]:
-        file_fields = ["filename", "purpose", "tasks"]
-        for field in file_fields:
-            if field not in file_obj:
-                raise ValueError(f"File missing required field: {field}")
+        filename = file_obj.get('filename', 'unknown')
 
-        if not isinstance(file_obj["tasks"], list) or len(file_obj["tasks"]) == 0:
-            raise ValueError(f"File '{file_obj.get('filename', 'unknown')}' must have a non-empty tasks list")
+        # Check required file fields
+        if "filename" not in file_obj or "purpose" not in file_obj:
+            raise ValueError(f"File missing required field: filename or purpose")
 
-        # Validate each task within the file
-        for task in file_obj["tasks"]:
-            task_fields = ["id", "title", "description", "dependencies", "estimated_time", "concepts"]
-            for field in task_fields:
-                if field not in task:
-                    raise ValueError(f"Task missing required field: {field}")
+        # File must have EITHER tasks OR classes, not both or neither
+        has_tasks = "tasks" in file_obj and file_obj["tasks"] is not None
+        has_classes = "classes" in file_obj and file_obj["classes"] is not None
+
+        if has_tasks and has_classes:
+            raise ValueError(f"File '{filename}' has both 'tasks' and 'classes' - must have only one")
+
+        if not has_tasks and not has_classes:
+            raise ValueError(f"File '{filename}' has neither 'tasks' nor 'classes' - must have one")
+
+        # Validate simple file structure (tasks directly in file)
+        if has_tasks:
+            if not isinstance(file_obj["tasks"], list) or len(file_obj["tasks"]) == 0:
+                raise ValueError(f"File '{filename}' must have a non-empty tasks list")
+
+            for task in file_obj["tasks"]:
+                task_fields = ["id", "title", "description", "dependencies", "estimated_time", "concepts"]
+                for field in task_fields:
+                    if field not in task:
+                        raise ValueError(f"Task in '{filename}' missing required field: {field}")
+
+        # Validate multi-class file structure (classes with tasks)
+        if has_classes:
+            if not isinstance(file_obj["classes"], list) or len(file_obj["classes"]) == 0:
+                raise ValueError(f"File '{filename}' must have a non-empty classes list")
+
+            for class_obj in file_obj["classes"]:
+                if "class_name" not in class_obj or "purpose" not in class_obj or "tasks" not in class_obj:
+                    raise ValueError(f"Class in '{filename}' missing required fields")
+
+                if not isinstance(class_obj["tasks"], list) or len(class_obj["tasks"]) == 0:
+                    raise ValueError(f"Class '{class_obj.get('class_name')}' in '{filename}' must have non-empty tasks list")
+
+                for task in class_obj["tasks"]:
+                    task_fields = ["id", "title", "description", "dependencies", "estimated_time", "concepts"]
+                    for field in task_fields:
+                        if field not in task:
+                            raise ValueError(f"Task in class '{class_obj.get('class_name')}' missing field: {field}")
 
     return True

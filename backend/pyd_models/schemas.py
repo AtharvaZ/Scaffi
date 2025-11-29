@@ -19,12 +19,27 @@ class TaskSchema(BaseModel):
     dependencies: List[int]
     estimated_time: str
     concepts: List[str]
+    template_variables: Optional[List[str]] = None  # NEW: for template preservation
 
-# NEW: File Schema for multi-file support
+# NEW: Class Schema for multi-class file support
+class ClassSchema(BaseModel):
+    class_name: str
+    purpose: str
+    tasks: List[TaskSchema]
+
+# NEW: Template Structure Schema
+class TemplateStructure(BaseModel):
+    has_template: bool = False
+    variable_names: List[str] = []
+    class_names: List[str] = []
+    method_signatures: Optional[List[str]] = []
+
+# NEW: File Schema for multi-file support (updated for classes)
 class FileSchema(BaseModel):
     filename: str
     purpose: str
-    tasks: List[TaskSchema]
+    tasks: Optional[List[TaskSchema]] = None  # For simple files
+    classes: Optional[List[ClassSchema]] = None  # For multi-class files
 
 #Test Case Schema
 class TestCase(BaseModel):
@@ -39,6 +54,7 @@ class TestCase(BaseModel):
 class TaskBreakdownSchema(BaseModel):
     overview: str
     total_estimated_time: str
+    template_structure: Optional[TemplateStructure] = None  # NEW: template info
     files: List[FileSchema]  # Changed from: tasks: List[TaskSchema]
     tests: Optional[List[TestCase]] = None
 
@@ -54,6 +70,10 @@ class BoilerPlateCodeSchema(BaseModel):
     known_language: Optional[str] = None
     experience_level: Optional[str] = None
     filename: str  # NEW: which file this task belongs to
+
+    # NEW FIELDS for class and template support
+    class_name: Optional[str] = None
+    template_variables: Optional[List[str]] = None
 
 #Output
 class StarterCode(BaseModel):

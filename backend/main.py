@@ -115,46 +115,94 @@ async def parse_assignment(assignment: AssignmentSchema):
 @app.post("/generate-starter-code-batch", response_model=BatchStarterCodeResponse)
 async def generate_starter_code_bacth(request: BatchBoilerPlateCodeSchema):
     """
-    Generate starter code template with TODOs for a specific task
-    
-    Agent 2 creates code templates with intelligent concept examples
-    based on the student's known language.
+    Generate starter code - now processes files separately for better quality
     """
     try:
         import time
         start_time = time.time()
-        
+
         logger.info("=" * 80)
         logger.info("BATCH CODE GENERATION REQUEST")
         logger.info(f"Number of tasks: {len(request.tasks)}")
-        logger.info("=" * 80)
-        
-        # Call Agent 2's batch method
-        results = codegen_agent.generate_all_boilerplate_batch(request.tasks)
+
+        # Group tasks by filename and track class structure
+        files_map = {}
+
+        for task in request.tasks:
+            filename = task.filename
+            class_name = getattr(task, 'class_name', None)
+
+            if filename not in files_map:
+                files_map[filename] = {
+                    'tasks': [],
+                    'class_structure': {},
+                    'template_variables': set()
+                }
+
+            # Add task to file
+            files_map[filename]['tasks'].append(task)
+
+            # Track template variables
+            if hasattr(task, 'template_variables') and task.template_variables:
+                files_map[filename]['template_variables'].update(task.template_variables)
+
+            # Track class membership
+            if class_name:
+                if class_name not in files_map[filename]['class_structure']:
+                    files_map[filename]['class_structure'][class_name] = []
+                files_map[filename]['class_structure'][class_name].append(task)
+
+        logger.info(f"Tasks organized into {len(files_map)} files")
+        for filename, file_data in files_map.items():
+            logger.info(f"  - {filename}: {len(file_data['tasks'])} tasks")
+            if file_data['class_structure']:
+                logger.info(f"    Classes: {', '.join(file_data['class_structure'].keys())}")
+
+        # Generate scaffolding per file
+        all_results = []
+
+        for filename, file_data in files_map.items():
+            file_tasks = file_data['tasks']
+            class_structure = file_data['class_structure'] if file_data['class_structure'] else None
+            template_vars = list(file_data['template_variables']) if file_data['template_variables'] else None
+
+            logger.info(f"Generating {filename}: {len(file_tasks)} tasks")
+            if class_structure:
+                logger.info(f"  Classes detected: {', '.join(class_structure.keys())}")
+            if template_vars:
+                logger.info(f"  Template variables to preserve: {', '.join(template_vars[:5])}...")
+
+            # Generate for this file only
+            file_results = codegen_agent.generate_file_scaffolding(
+                filename=filename,
+                tasks=file_tasks,
+                class_structure=class_structure,
+                template_variables=template_vars
+            )
+
+            all_results.extend(file_results)
+            logger.info(f"Successfully generated {len(file_results)} tasks for {filename}")
 
         elapsed_time = time.time() - start_time
-        logger.info(f"Batch generation completed in {elapsed_time:.2f} seconds")
+        logger.info(f"Total generation completed in {elapsed_time:.2f} seconds")
 
-        # Log what we're returning to frontend
         logger.info("=" * 80)
         logger.info("RETURNING TO FRONTEND:")
-        for idx, result in enumerate(results):
-            logger.info(f"Task {idx} - Todos count: {len(result.todos)}")
-            logger.info(f"Task {idx} - Todos: {result.todos}")
+        for idx, result in enumerate(all_results):
+            logger.info(f"Task {idx}: {len(result.todos)} todos, file: {result.filename}")
         logger.info("=" * 80)
 
         return BatchStarterCodeResponse(
-            tasks=results,
-            total_tasks=len(results),
+            tasks=all_results,
+            total_tasks=len(all_results),
             generation_time=f"{elapsed_time:.2f}s"
         )
-    
+
     except Exception as e:
         error_str = str(e).lower()
         logger.error(f"Failed to generate starter code batch: {e}", exc_info=True)
-        
-        # Provide user-friendly error messages for API errors
-        if "rate limit" in error_str or "overloaded" in error_str or "529" in error_str or "temporarily unavailable" in error_str:
+
+        if "rate limit" in error_str or "overloaded" in error_str or "529" in error_str:
             raise HTTPException(
                 status_code=503,
                 detail="The AI service is temporarily overloaded. Please try again in a few moments."

@@ -4,6 +4,7 @@ import type { CodeEditorProps } from '../types';
 
 export function CodeEditor({ initialCode, language, onChange, readOnly = false, scrollToTaskIndex, todos }: CodeEditorProps) {
   const editorRef = useRef<any>(null);
+  const lastScrolledIndexRef = useRef<number | undefined>(undefined);
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -11,7 +12,8 @@ export function CodeEditor({ initialCode, language, onChange, readOnly = false, 
 
   // Scroll to task when selected
   useEffect(() => {
-    if (editorRef.current && scrollToTaskIndex !== undefined && todos) {
+    // Only scroll if the index has actually changed
+    if (editorRef.current && scrollToTaskIndex !== undefined && scrollToTaskIndex !== lastScrolledIndexRef.current && todos) {
       const editor = editorRef.current;
       const model = editor.getModel();
       if (!model) return;
@@ -19,21 +21,20 @@ export function CodeEditor({ initialCode, language, onChange, readOnly = false, 
       const code = model.getValue();
       const lines = code.split('\n');
       let targetLine = -1;
-      let todoCount = 0;
 
-      // Count TODO comments until we reach the Nth one (where N = scrollToTaskIndex)
+      // The task number we're looking for (scrollToTaskIndex is 0-based, but tasks are numbered starting from 1)
+      const taskNumber = scrollToTaskIndex + 1;
+
+      // Search for TASK header comments (e.g., "// ===== TASK 1: ..." or "# ===== TASK 1: ...")
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const line = lines[i].trim();
         const lowerLine = line.toLowerCase();
 
-        // Check if this line contains a TODO comment
-        if (lowerLine.includes('todo')) {
-          // This is the Nth TODO we're looking for
-          if (todoCount === scrollToTaskIndex) {
-            targetLine = i + 1; // Monaco uses 1-based line numbers
-            break;
-          }
-          todoCount++;
+        // Check if this line is a TASK header
+        // Pattern: starts with comment syntax (// or #), contains "task", followed by the task number
+        if (lowerLine.includes('task') && lowerLine.includes(`task ${taskNumber}:`)) {
+          targetLine = i + 1; // Monaco uses 1-based line numbers
+          break;
         }
       }
 
@@ -41,6 +42,7 @@ export function CodeEditor({ initialCode, language, onChange, readOnly = false, 
         // Scroll to and highlight the line
         editor.revealLineInCenter(targetLine);
         editor.setPosition({ lineNumber: targetLine, column: 1 });
+        editor.focus();
 
         // Optionally highlight the line temporarily
         const decorations = editor.deltaDecorations([], [
@@ -58,6 +60,9 @@ export function CodeEditor({ initialCode, language, onChange, readOnly = false, 
         setTimeout(() => {
           editor.deltaDecorations(decorations, []);
         }, 2000);
+
+        // Remember that we've scrolled to this index
+        lastScrolledIndexRef.current = scrollToTaskIndex;
       }
     }
   }, [scrollToTaskIndex, todos]);

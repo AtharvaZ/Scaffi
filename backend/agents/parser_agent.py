@@ -124,9 +124,16 @@ class ParserAgent:
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"Parser Agent attempt {attempt + 1}/{self.max_retries}")
-                response_text = self.client.generate_response(prompt, max_tokens=2000)
+                response_text = self.client.generate_response(prompt, max_tokens=3000)
+
+                # Log response for debugging
+                logger.info(f"AI response preview (first 500 chars): {response_text[:500]}")
 
                 data = extract_json_from_response(response_text)
+
+                # Log parsed data keys
+                logger.info(f"Parsed JSON keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+
                 validate_task_breakdown(data)
 
                 logger.info(f"Successfully parsed assignment on attempt {attempt + 1}")
@@ -135,11 +142,15 @@ class ParserAgent:
 
             except (ValueError, KeyError) as e:
                 last_error = e
-                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
+                error_msg = str(e)
+                logger.warning(f"Attempt {attempt + 1} failed: {error_msg}")
 
-                # If not the last attempt, add a note to the prompt to be more strict
+                # If not the last attempt, add specific guidance based on the error
                 if attempt < self.max_retries - 1:
-                    prompt += f"\n\nIMPORTANT: Previous attempt failed due to invalid JSON format. Ensure your response is ONLY valid JSON with no additional text."
+                    if "overview" in error_msg:
+                        prompt += f"\n\nCRITICAL: Your response MUST start with the 'overview' field at the top level. Structure: {{\"overview\": \"...\", \"total_estimated_time\": \"...\", \"template_structure\": {{...}}, \"files\": [...]}}"
+                    else:
+                        prompt += f"\n\nIMPORTANT: Previous attempt failed: {error_msg}. Ensure your response is ONLY valid JSON with ALL required fields."
                 continue
 
         # If all retries failed, raise the last error
@@ -148,11 +159,16 @@ class ParserAgent:
             raise ValueError(f"Failed to parse assignment after {self.max_retries} attempts: {str(last_error)}")
 
         # Generate test cases
-        test_cases = self.generate_test_cases(
-            assignment_text=inputData.assignment_text,
-            files=task_breakdown_result['files'],
-            target_language=inputData.target_language
-        )
+        files_for_tests = task_breakdown_result.get('files', [])
+        if files_for_tests:
+            test_cases = self.generate_test_cases(
+                assignment_text=inputData.assignment_text,
+                files=files_for_tests,
+                target_language=inputData.target_language
+            )
+        else:
+            logger.warning("No files found for test generation, skipping")
+            test_cases = []
 
         # Add tests to the result
         task_breakdown_result['tests'] = test_cases
