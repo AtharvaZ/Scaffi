@@ -49,20 +49,51 @@ TEST CASE DISTRIBUTION:
 - 30% edge cases (boundary conditions, empty inputs, single elements)
 - 10% error cases (invalid inputs, type errors)
 
-LANGUAGE-SPECIFIC FORMATTING:
-Format inputs and outputs according to the target language:
-- Python: Use Python syntax (e.g., "True", "False", "None", "[]", "{{}}")
-- Java: Use Java syntax (e.g., "true", "false", "null", "new ArrayList<>()")
-- JavaScript: Use JS syntax (e.g., "true", "false", "null", "[]", "{{}}")
-- C++: Use C++ syntax (e.g., "true", "false", "nullptr", "vector<int>()")
+LANGUAGE-SPECIFIC FORMATTING AND TEST STYLES:
+
+Python/JavaScript:
+- Format inputs/outputs with proper syntax (e.g., "True", "False", "None", "[]")
+- Use direct function calls: function_name(input)
+
+C#/Java (for complex code with threading, classes, state):
+- Use reflection-based or integration-style tests
+- For simple functions: direct calls work
+- For complex assignments (threading, multi-class, state management):
+  * Generate tests that instantiate classes and call methods
+  * Test observable behavior (output, state changes, file creation)
+  * Use Main method to set up, execute, and verify behavior
+  * Example test for threading: Check if threads created, if output contains expected patterns
+
+CRITICAL - Detecting if code will have Main method:
+- Threading assignments → Will have Main, use function_name: "Main"
+- Console applications → Will have Main, use function_name: "Main"
+- Assignments with "create a program" → Will have Main, use function_name: "Main"
+- Kernel modules, drivers → Will have Main/init, use function_name: "Main"
+- Simple utility functions → NO Main, use function_name: "ClassName.MethodName" or just "MethodName"
+
+C#/Java Test Decision Tree:
+1. Simple function (pure, stateless) → Direct call: `var result = FunctionName(input);`
+2. Class with state → Instantiate and test: `var obj = new ClassName(); obj.Method(); Console.WriteLine(obj.Property);`
+3. Threading/async → Test observable effects: Check console output for thread messages, completion markers
+4. File I/O → Test if files created/modified correctly
+5. Complex integration → Run Main() and verify complete program output
+
+For threading/concurrent assignments in C#/Java:
+- Don't test internal thread details (can't access thread objects easily)
+- Test OBSERVABLE behavior:
+  * Console output contains expected patterns
+  * Expected number of messages
+  * Synchronization correctness (no race conditions in output)
+  * Completion markers ("All producers finished", etc.)
 
 FUNCTION NAME INFERENCE:
 - Look for explicit function names in the assignment (e.g., "Write a function called reverse_string")
 - If not explicit, infer from the task description (e.g., "reverse string" → "reverse_string" or "reverseString")
 - Use appropriate naming convention for the language (snake_case for Python, camelCase for Java/JS/C++)
 
-EXAMPLE TEST CASE:
-For assignment: "Write a function is_palindrome(s) that checks if a string is a palindrome"
+EXAMPLE TEST CASES:
+
+Example 1 - Simple Python function:
 {{
   "test_name": "test_basic_palindrome",
   "function_name": "is_palindrome",
@@ -72,17 +103,50 @@ For assignment: "Write a function is_palindrome(s) that checks if a string is a 
   "test_type": "normal"
 }}
 
+Example 2 - C# threading assignment (observable behavior test):
+{{
+  "test_name": "test_producer_consumer_basic",
+  "function_name": "Main",
+  "input_data": "",
+  "expected_output": "CONTAINS:Producer,Consumer,produced,consumed",
+  "description": "Verify producer and consumer threads execute and produce expected output patterns",
+  "test_type": "normal"
+}}
+Note: Use "CONTAINS:word1,word2,word3" format for tests that check if output contains certain patterns
+
+Example 3 - C# class method test (with namespace):
+{{
+  "test_name": "test_booking_system_initialization",
+  "function_name": "ConsoleApp1.BookingSystem.ProcessBooking",
+  "input_data": "",
+  "expected_output": "Booking processed successfully",
+  "description": "Test that booking system initializes and processes bookings",
+  "test_type": "normal"
+}}
+Note: For C# with namespaces, use format: Namespace.ClassName.MethodName
+
+IMPORTANT FOR C# CODE WITH EXISTING MAIN METHOD:
+- If student code already has a Main method, use function_name: "Main"
+- The test runner will execute the whole program as-is
+- For threading/integration tests, always use function_name: "Main"
+- For specific method tests without Main, use: "Namespace.ClassName.MethodName"
+
 Return ONLY a valid JSON array of test case objects with this EXACT structure:
 [
   {{
     "test_name": "descriptive_test_name",
-    "function_name": "function_being_tested",
-    "input_data": "input as string",
-    "expected_output": "expected output as string",
+    "function_name": "function_or_method_being_tested",
+    "input_data": "input as string (or empty for integration tests)",
+    "expected_output": "expected output as string (use CONTAINS:pattern1,pattern2 for partial matches)",
     "description": "Human-readable description",
     "test_type": "normal|edge|error"
   }}
 ]
+
+SPECIAL OUTPUT MATCHING FOR C#/Java COMPLEX TESTS:
+- Exact match: "Expected output text" → Output must exactly match
+- Pattern match: "CONTAINS:word1,word2,word3" → Output must contain all these words/phrases
+- Count match: "COUNT:ThreadName:5" → Output must contain "ThreadName" exactly 5 times
 
 CRITICAL RESPONSE FORMAT:
 - Your response must be ONLY valid JSON array
