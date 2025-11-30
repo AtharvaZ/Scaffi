@@ -14,7 +14,7 @@ class CodeRunner:
     def __init__(self):
         # Use public Piston API or set your own instance URL via environment variable
         self.piston_api_url = os.getenv("PISTON_API_URL", "https://emkc.org/api/v2/piston")
-        self.timeout = 10  # 10 second timeout
+        self.timeout = 30  # 30 second timeout (increased for complex programs with threading)
         self.max_output_length = 10000  # Limit output to prevent memory issues
         
         # Language mappings for Piston API

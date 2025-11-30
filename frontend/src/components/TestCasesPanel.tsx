@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, TestTube2, Edit2, Trash2, Plus, Save, X, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import type { TestCase, TestResult } from '../types';
@@ -13,6 +13,13 @@ export function TestCasesPanel({ testCases, onTestCasesChange, testResults }: Te
   const [expandedTest, setExpandedTest] = useState<string | null>(null);
   const [editingTest, setEditingTest] = useState<number | null>(null);
   const [editedTests, setEditedTests] = useState<TestCase[]>(testCases);
+
+  // Sync editedTests with testCases prop when it changes (e.g., after generating new tests)
+  useEffect(() => {
+    console.log("🔄 TestCasesPanel: testCases prop changed, updating editedTests");
+    console.log("  - New testCases length:", testCases.length);
+    setEditedTests(testCases);
+  }, [testCases]);
 
   const hasTests = testCases && testCases.length > 0;
 

@@ -69,6 +69,16 @@ export function EditorPage() {
   // Track previous currentFile to detect changes
   const prevCurrentFileRef = useRef<string | null>(null);
 
+  // Debug: Log when parserOutput changes (specifically when tests change)
+  useEffect(() => {
+    if (parserOutput?.files) {
+      console.log("🔄 parserOutput.files changed:");
+      parserOutput.files.forEach(file => {
+        console.log(`  - ${file.filename}: ${file.tests?.length || 0} tests`);
+      });
+    }
+  }, [parserOutput?.files]);
+
   // Redirect if no scaffold
   useEffect(() => {
     if (!scaffold) {
@@ -182,15 +192,18 @@ export function EditorPage() {
   const currentFileTests = (() => {
     // For single-file assignments, look for tests in the first file
     if (!hasMultipleFiles && parserOutput?.files?.[0]?.tests) {
+      console.log("📋 currentFileTests (single-file):", parserOutput.files[0].tests.length, "tests");
       return parserOutput.files[0].tests;
     }
 
     // For multi-file assignments, get tests from current file
     if (hasMultipleFiles && parserOutput?.files && currentFile) {
       const fileData = parserOutput.files.find(f => f.filename === currentFile);
+      console.log("📋 currentFileTests (multi-file):", fileData?.filename, "-", fileData?.tests?.length || 0, "tests");
       return fileData?.tests || [];
     }
 
+    console.log("📋 currentFileTests: no tests found");
     return [];
   })();
 
@@ -265,7 +278,15 @@ export function EditorPage() {
   };
 
   const handleGenerateTests = async () => {
-    if (!studentCode || !currentFile) return;
+    console.log("🔄 handleGenerateTests called");
+    console.log("  - studentCode length:", studentCode?.length || 0);
+    console.log("  - currentFile:", currentFile);
+    console.log("  - language:", language);
+
+    if (!studentCode || !currentFile) {
+      console.warn("❌ Missing studentCode or currentFile, returning early");
+      return;
+    }
 
     setIsGeneratingTests(true);
     setError(null);
@@ -273,23 +294,32 @@ export function EditorPage() {
     try {
       // Get assignment description from scaffold if available
       const assignmentDescription = parserOutput?.overview || undefined;
+      console.log("  - assignmentDescription:", assignmentDescription ? "present" : "none");
 
       // Generate tests from user's code
+      console.log("📡 Calling API to generate tests...");
       const result = await safeApiCall(
         () => generateTestsFromCode(studentCode, language, currentFile, assignmentDescription),
         "Failed to generate tests"
       );
 
+      console.log("📥 API response received:", result);
+
       if (result && result.tests && result.tests.length > 0) {
         // Update test cases in store
+        console.log(`✅ Updating test cases with ${result.tests.length} tests`);
+        console.log("  - Tests:", result.tests);
         updateTestCases(result.tests);
         console.log(`✓ Generated ${result.tests.length} test cases`);
       } else {
+        console.warn("⚠️ No tests generated:", result?.message);
         setError(result?.message || "No tests were generated. Please check your code.");
       }
     } catch (err) {
+      console.error("❌ Error generating tests:", err);
       setError(err instanceof Error ? err.message : "An error occurred generating tests");
     } finally {
+      console.log("🏁 handleGenerateTests complete");
       setIsGeneratingTests(false);
     }
   };
