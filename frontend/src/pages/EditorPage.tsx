@@ -599,6 +599,7 @@ export function EditorPage() {
                 currentTodoIndex={0}
                 knownLanguage={proficientLanguage}
                 experienceLevel={experienceLevel}
+                testResults={runnerResult?.test_results}
                 onClose={() => {
                   setShowHelpPanel(false);
                   setAutoTriggerQuestion(undefined);

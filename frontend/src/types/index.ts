@@ -16,6 +16,7 @@ export interface ClassSchema {
   class_name: string;
   purpose: string;
   tasks: TaskSchema[];
+  method_signatures?: string[];  // Method names/signatures to preserve from template
 }
 
 // NEW: File Schema for multi-file support (updated for multi-class and per-file tests)

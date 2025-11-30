@@ -136,7 +136,8 @@ async def generate_starter_code_bacth(request: BatchBoilerPlateCodeSchema):
                 files_map[filename] = {
                     'tasks': [],
                     'class_structure': {},
-                    'template_variables': set()
+                    'template_variables': set(),
+                    'method_signatures_by_class': {}  # Track methods per class
                 }
 
             # Add task to file
@@ -145,6 +146,12 @@ async def generate_starter_code_bacth(request: BatchBoilerPlateCodeSchema):
             # Track template variables
             if hasattr(task, 'template_variables') and task.template_variables:
                 files_map[filename]['template_variables'].update(task.template_variables)
+
+            # Track method signatures per class
+            if hasattr(task, 'method_signatures') and task.method_signatures and class_name:
+                if class_name not in files_map[filename]['method_signatures_by_class']:
+                    files_map[filename]['method_signatures_by_class'][class_name] = set()
+                files_map[filename]['method_signatures_by_class'][class_name].update(task.method_signatures)
 
             # Track class membership
             if class_name:
@@ -165,19 +172,31 @@ async def generate_starter_code_bacth(request: BatchBoilerPlateCodeSchema):
             file_tasks = file_data['tasks']
             class_structure = file_data['class_structure'] if file_data['class_structure'] else None
             template_vars = list(file_data['template_variables']) if file_data['template_variables'] else None
+            # Convert method signatures from sets to lists per class
+            method_sigs_by_class = {cls: list(methods) for cls, methods in file_data['method_signatures_by_class'].items()} if file_data['method_signatures_by_class'] else None
 
-            logger.info(f"Generating {filename}: {len(file_tasks)} tasks")
+            logger.info("=" * 80)
+            logger.info(f"🔧 GENERATING CODE FOR: {filename}")
+            logger.info(f"  Total Tasks: {len(file_tasks)}")
             if class_structure:
                 logger.info(f"  Classes detected: {', '.join(class_structure.keys())}")
             if template_vars:
-                logger.info(f"  Template variables to preserve: {', '.join(template_vars[:5])}...")
+                logger.info(f"  Template variables to preserve: {template_vars}")
+            if method_sigs_by_class:
+                logger.info("  📋 METHOD SIGNATURES TO PRESERVE:")
+                for cls, methods in method_sigs_by_class.items():
+                    logger.info(f"    {cls}: {methods}")
+            else:
+                logger.info("  ⚠️  NO METHOD SIGNATURES DETECTED - will generate new methods")
+            logger.info("=" * 80)
 
             # Generate for this file only
             file_results = codegen_agent.generate_file_scaffolding(
                 filename=filename,
                 tasks=file_tasks,
                 class_structure=class_structure,
-                template_variables=template_vars
+                template_variables=template_vars,
+                method_signatures_by_class=method_sigs_by_class
             )
 
             all_results.extend(file_results)

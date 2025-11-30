@@ -26,6 +26,7 @@ class ClassSchema(BaseModel):
     class_name: str
     purpose: str
     tasks: List[TaskSchema]
+    method_signatures: Optional[List[str]] = []  # Method names/signatures to preserve from template
 
 # NEW: Template Structure Schema
 class TemplateStructure(BaseModel):
@@ -74,6 +75,7 @@ class BoilerPlateCodeSchema(BaseModel):
     # NEW FIELDS for class and template support
     class_name: Optional[str] = None
     template_variables: Optional[List[str]] = None
+    method_signatures: Optional[List[str]] = None  # Method names to preserve from template
 
 #Output
 class StarterCode(BaseModel):
@@ -106,6 +108,7 @@ class HintResponseSchema(BaseModel):
    known_language: Optional[str] = None
    target_language: Optional[str] = None
    experience_level: Optional[str] = None
+   test_results: Optional[List[Dict]] = None  # NEW: Test results to help debug test failures
 
 #Output
 class HintSchema(BaseModel):

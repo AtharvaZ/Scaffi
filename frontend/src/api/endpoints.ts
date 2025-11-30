@@ -7,6 +7,7 @@ import type {
   ParserOutput,
   ScaffoldPackage,
   RunnerResult,
+  TestResult,
 } from "../types";
 
 // Health check
@@ -70,7 +71,8 @@ export async function getHint(
   helpCount: number,
   knownLanguage?: string,
   targetLanguage?: string,
-  experienceLevel?: string
+  experienceLevel?: string,
+  testResults?: TestResult[]  // NEW: Optional test results for test case debugging
 ): Promise<HintSchema> {
   // Ensure all values are serializable
   const payload = {
@@ -85,6 +87,7 @@ export async function getHint(
     known_language: knownLanguage ? String(knownLanguage) : null,
     target_language: targetLanguage ? String(targetLanguage) : null,
     experience_level: experienceLevel ? String(experienceLevel) : null,
+    test_results: testResults || null,  // NEW: Pass test results for analysis
   };
 
   return apiCall<HintSchema>("/get-hint", {
@@ -138,12 +141,13 @@ export async function parseAndScaffold(
   // Extract global template variables from template_structure (for entire assignment)
   const globalTemplateVariables = taskBreakdown.template_structure?.variable_names || [];
 
-  // Extract all tasks from files structure with class and template info
+  // Extract all tasks from files structure with class, template, and method info
   const allTasksWithFiles: Array<{
     task: TaskSchema,
     filename: string,
     className?: string,
-    templateVariables?: string[]
+    templateVariables?: string[],
+    methodSignatures?: string[]
   }> = [];
 
   if (taskBreakdown.files) {
@@ -167,7 +171,9 @@ export async function parseAndScaffold(
               filename: file.filename,
               className: classObj.class_name,  // Track which class this task belongs to
               // Use task-specific template vars if present, otherwise use global ones
-              templateVariables: task.template_variables || (globalTemplateVariables.length > 0 ? globalTemplateVariables : undefined)
+              templateVariables: task.template_variables || (globalTemplateVariables.length > 0 ? globalTemplateVariables : undefined),
+              // Pass method signatures from the class
+              methodSignatures: classObj.method_signatures || undefined
             });
           }
         }
@@ -194,8 +200,8 @@ export async function parseAndScaffold(
     }
   }
 
-  // Build batch request with filename, class_name, and template_variables
-  const batchRequest = allTasksWithFiles.map(({ task, filename, className, templateVariables }) => ({
+  // Build batch request with filename, class_name, template_variables, and method_signatures
+  const batchRequest = allTasksWithFiles.map(({ task, filename, className, templateVariables, methodSignatures }) => ({
     task_description: task.description,
     programming_language: targetLanguage,
     concepts: task.concepts,
@@ -203,7 +209,8 @@ export async function parseAndScaffold(
     experience_level: experienceLevel,
     filename: filename,
     class_name: className || undefined,  // Pass class name if present
-    template_variables: templateVariables || undefined  // Pass template vars if present
+    template_variables: templateVariables || undefined,  // Pass template vars if present
+    method_signatures: methodSignatures || undefined  // Pass method signatures if present
   }));
 
   // Simulate smooth progress during batch generation

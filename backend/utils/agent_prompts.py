@@ -191,6 +191,9 @@ If the assignment includes existing template/skeleton code:
 - IDENTIFY variable names, method signatures, class names used in template
 - PRESERVE these exact names - students must use them
 - Organize tasks by which class they belong to
+- 🚨 CRITICAL: Assign methods to their respective classes in BOTH places:
+  1. Global template_structure.method_signatures (all methods)
+  2. PER-CLASS in each class's method_signatures array (methods for that class ONLY)
 
 Example workflow:
 If template shows:
@@ -206,7 +209,9 @@ public class Order {{
 You should detect:
 - Two classes: BookingSystem, Order
 - Variables to preserve: orderQueue (in BookingSystem), orderId (in Order)
-- Methods to preserve: processBooking(), getOrderId()
+- Methods to preserve globally: processBooking(), getOrderId()
+- 🚨 BookingSystem class MUST have method_signatures: ["processBooking()"]
+- 🚨 Order class MUST have method_signatures: ["getOrderId()"]
 
 MULTI-CLASS FILE ORGANIZATION:
 For C#/Java files with multiple classes:
@@ -216,12 +221,11 @@ Detection patterns:
 - Look for "ClassName.methodName()" references
 - Look for task descriptions mentioning class names
 
-Confidence levels:
-- HIGH: Template shows "public class Hotel" → use "Hotel"
-- MEDIUM: Task says "Implement Hotel pricing" → use "Hotel"
-- LOW: Task says "add pricing logic" → don't guess, use null
-
-Only create class entries for HIGH confidence detections.
+🚨 CRITICAL RULE FOR CLASS DETECTION:
+- If template code shows "public class ClassName", you MUST create a class entry for it
+- EVERY class in the template MUST appear in your classes array
+- Do NOT skip classes - if it's in the template, it's required
+- Even classes with minimal code in template are needed for the structure
 
 IMPORTANT RULES:
 - Do NOT provide complete solutions or full implementations
@@ -301,6 +305,7 @@ FOR MULTI-CLASS FILES WITH TEMPLATE:
                 {{
                     "class_name": "BookingSystem",
                     "purpose": "Main booking logic",
+                    "method_signatures": ["processBooking()"],
                     "tasks": [
                         {{
                             "id": 1,
@@ -316,6 +321,7 @@ FOR MULTI-CLASS FILES WITH TEMPLATE:
                 {{
                     "class_name": "Order",
                     "purpose": "Order data structure",
+                    "method_signatures": ["getOrderId()"],
                     "tasks": [...]
                 }}
             ],
@@ -363,6 +369,7 @@ EXAMPLE 2 - Multi-class C# file with template:
                 {{
                     "class_name": "Library",
                     "purpose": "Manages book collection",
+                    "method_signatures": ["addBook(Book b)"],
                     "tasks": [
                         {{"id": 1, "title": "Initialize book list", "description": "Create bookList array", "template_variables": ["bookList"], "dependencies": [], "estimated_time": "20 minutes", "concepts": ["Collections"]}}
                     ]
@@ -370,6 +377,7 @@ EXAMPLE 2 - Multi-class C# file with template:
                 {{
                     "class_name": "Book",
                     "purpose": "Book data",
+                    "method_signatures": [],
                     "tasks": [
                         {{"id": 2, "title": "Add book properties", "description": "...", "template_variables": [], "dependencies": [], "estimated_time": "15 minutes", "concepts": ["Classes"]}}
                     ]
@@ -377,6 +385,7 @@ EXAMPLE 2 - Multi-class C# file with template:
                 {{
                     "class_name": "Member",
                     "purpose": "Library member data",
+                    "method_signatures": ["getMemberId()"],
                     "tasks": [
                         {{"id": 3, "title": "Create member ID getter", "description": "...", "template_variables": ["memberId"], "dependencies": [], "estimated_time": "10 minutes", "concepts": ["Encapsulation"]}}
                     ]
@@ -392,8 +401,11 @@ CRITICAL RULES:
 - Use "tasks" array for simple files, set "classes" to null
 - NEVER use both classes and tasks at the same level
 - Extract template variable names if template exists
+- 🚨 CRITICAL: Each class MUST have method_signatures array (empty [] if no methods, NOT missing!)
+- 🚨 If template has methods, assign EACH method to its correct class's method_signatures array
 - Task IDs must be unique across entire response
-- Only detect classes with HIGH confidence
+- 🚨 EVERY class in template code MUST appear in classes array (don't skip any!)
+- 🚨 Count classes in template carefully - if template has 6 classes, you MUST output 6 class entries
 
 CRITICAL RESPONSE FORMAT:
 - ONLY valid JSON, no markdown, no explanations
@@ -405,8 +417,9 @@ CRITICAL RESPONSE FORMAT:
 
 
 def get_helper_prompt(task_description: str, concepts: list, student_code: str,
-                      question: str, previous_hints: list, help_count: int, 
-                      known_language: str = None, target_language: str = None, experience_level: str = "intermediate") -> str:
+                      question: str, previous_hints: list, help_count: int,
+                      known_language: str = None, target_language: str = None, experience_level: str = "intermediate",
+                      test_results: list = None) -> str:
     """
     Agent 3: Live Coding Helper (SMART CONTEXT-AWARE VERSION)
     Provide contextual hints based on student's struggle level
@@ -504,6 +517,69 @@ YOUR RESPONSE RULES:
 - Otherwise: Give targeted hint for their question, then STOP
 """
     
+    # Format test results if provided
+    test_results_section = ""
+    if test_results:
+        # Correctly identify passed vs failed tests
+        passed_tests = [t for t in test_results if t.get('passed') == True]
+        failed_tests = [t for t in test_results if t.get('passed') == False]
+
+        if failed_tests or passed_tests:
+            test_results_section = f"\n\n{'='*60}\nTEST RESULTS:\n{'='*60}\n"
+            test_results_section += f"✓ Passed: {len(passed_tests)}/{len(test_results)}\n"
+            test_results_section += f"✗ Failed: {len(failed_tests)}/{len(test_results)}\n"
+
+            if failed_tests:
+                test_results_section += f"\n{'='*60}\nFAILED TEST CASES:\n{'='*60}\n"
+                for i, test in enumerate(failed_tests[:3], 1):  # Show max 3 failed tests
+                    test_results_section += f"\n{i}. {test.get('test_name', 'Test')}\n"
+                    test_results_section += f"   Function: {test.get('function_name', 'N/A')}\n"
+                    test_results_section += f"   Input: {test.get('input_data', 'N/A')}\n"
+                    test_results_section += f"   Expected Output: {test.get('expected_output', 'N/A')}\n"
+                    test_results_section += f"   Actual Output: {test.get('actual_output', 'N/A')}\n"
+                    if test.get('error'):
+                        test_results_section += f"   Error: {test.get('error')}\n"
+
+                test_results_section += f"\n{'='*60}\n"
+                test_results_section += """
+CRITICAL ANALYSIS INSTRUCTIONS FOR TEST FAILURES:
+
+🔍 STEP 1: Analyze the student's code structure and logic
+   - Check if classes/methods are properly defined
+   - Verify the logic matches the task requirements
+   - Look for syntax errors or obvious bugs
+
+🔍 STEP 2: Compare ACTUAL vs EXPECTED outputs
+   - Look at what the code is ACTUALLY producing
+   - Compare to what the test EXPECTS
+   - Ask: "Is the test expectation reasonable?"
+
+🔍 STEP 3: Determine the root cause
+
+   IF code structure looks correct AND logic seems sound:
+   ➡️ The problem is likely with TEST EXPECTATIONS, not the code
+   ➡️ Tell the student: "Your code logic looks correct. The test expectations might need adjustment."
+   ➡️ Point out: "Check if the expected output in the test matches what your code should produce."
+   ➡️ Suggest: "Review the test's expected input/output - they may not align with your implementation."
+
+   IF code has bugs or missing implementation:
+   ➡️ Point out the specific code issue
+   ➡️ Guide them to fix their implementation
+
+   IF actual output is empty/null but code exists:
+   ➡️ There's likely a compilation error, wrong method name, or runtime error
+   ➡️ Check for: wrong class name, wrong method name, missing return statement
+
+🚨 WHEN TO SUGGEST TEST CASE ADJUSTMENT:
+- Student's code follows proper structure (classes, methods defined correctly)
+- Logic appears sound for the task requirements
+- BUT actual outputs don't match expected outputs
+- This means: THE TEST EXPECTATIONS ARE PROBABLY WRONG, NOT THE CODE
+
+Example good hint when code is correct but tests fail:
+"Your MultiCellBuffer class is properly structured with the correct constructor and array initialization. The test failures suggest the test case expectations might not match your implementation. Review the test inputs and expected outputs - they may need to be adjusted to align with how your code actually works."
+"""
+
     return f"""You are a live coding assistant helping a student who is stuck while programming.
 
 Task Goal: {task_description}
@@ -512,7 +588,7 @@ Concepts: {concepts_str}{language_context}
 Student's Current Code:
 ```
 {student_code}
-```
+```{test_results_section}
 
 Student's Question: {question}
 
@@ -622,7 +698,8 @@ EXAMPLE VALID RESPONSE:
 
 def get_file_codegen_prompt(tasks_data: list, filename: str,
                             class_structure: dict = None,
-                            template_variables: list = None) -> str:
+                            template_variables: list = None,
+                            method_signatures_by_class: dict = None) -> str:
     """
     Generate prompt for creating ONE complete file with ALL its tasks.
     Focused approach for better quality than batch generation.
@@ -632,6 +709,7 @@ def get_file_codegen_prompt(tasks_data: list, filename: str,
         filename: Name of file being generated
         class_structure: Dict of {class_name: [tasks]} or None for single-class
         template_variables: List of variable names to preserve from template, or None
+        method_signatures_by_class: Dict of {class_name: [method_names]} for template methods
     """
 
     if not tasks_data:
@@ -718,6 +796,20 @@ Check each task for template_variables field and use those exact names.
 """
     else:
         template_guidance = ""
+
+    # Method signature preservation
+    method_guidance = ""
+    if method_signatures_by_class:
+        method_guidance = "\n🚨 CRITICAL - TEMPLATE METHOD PRESERVATION 🚨\n\nYOU MUST CREATE THESE EXACT METHODS:\n"
+        for class_name, methods in method_signatures_by_class.items():
+            if methods:
+                method_guidance += f"\n{class_name} class:\n"
+                for method in methods:
+                    method_guidance += f"  - {method}()\n"
+        method_guidance += "\n ⚠️ Use EXACT names. Wrong names = autograder failure ⚠️\n"
+
+    # Multi-class guidance (don't add examples that cause duplication)
+    multi_class_example = ""
 
     # Build task descriptions
     tasks_description = ""
@@ -882,6 +974,7 @@ NUMBER OF TASKS: {len(tasks_data)}
 {structure_guidance}
 
 {template_guidance}
+{method_guidance}
 
 Tasks for this file:
 {tasks_description}
@@ -889,7 +982,7 @@ Tasks for this file:
 CRITICAL REQUIREMENTS:
 1. Generate ONE complete, valid, compilable file: {filename}
 2. {"Create all " + str(len(class_list)) + " classes with proper structure" if is_multi_class else "Use proper single-class structure"}
-3. {"Each task goes in its assigned class" if is_multi_class else "All tasks in one class"}
+3. Include relevant TODOs for each task
 4. Use CONSISTENT variable names throughout this ENTIRE file
 5. Proper {language} syntax
 6. Comment style: Use "{comment_style}" for ALL comments and TODOs
@@ -969,6 +1062,8 @@ If assignment DOES specify something → you MUST follow it exactly
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CRITICAL JSON RESPONSE FORMAT - READ CAREFULLY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{multi_class_example}
 
 Your response MUST be ONLY valid JSON in this EXACT format:
 

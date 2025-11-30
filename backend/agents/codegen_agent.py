@@ -21,7 +21,8 @@ class CodegenAgent:
     def generate_file_scaffolding(self, filename: str,
                                    tasks: List[BoilerPlateCodeSchema],
                                    class_structure: dict = None,
-                                   template_variables: list = None) -> List[StarterCode]:
+                                   template_variables: list = None,
+                                   method_signatures_by_class: dict = None) -> List[StarterCode]:
         """
         Generate scaffolding for ONE complete file.
 
@@ -30,6 +31,7 @@ class CodegenAgent:
             tasks: List of tasks for this file
             class_structure: Dict of {class_name: [tasks]} or None for single-class
             template_variables: List of variable names from template to preserve, or None
+            method_signatures_by_class: Dict of {class_name: [method_names]} for template methods
 
         Returns:
             List of StarterCode objects for this file's tasks
@@ -60,7 +62,8 @@ class CodegenAgent:
             tasks_dict_list,
             filename,
             class_structure=class_structure,
-            template_variables=template_variables
+            template_variables=template_variables,
+            method_signatures_by_class=method_signatures_by_class
         )
 
         last_error = None
@@ -68,9 +71,10 @@ class CodegenAgent:
             try:
                 logger.info(f"File codegen for {filename}, attempt {attempt + 1}/{self.max_retries}")
 
-                # Set high token budget for complete code generation
-                # Use fixed 16000 tokens to avoid truncation issues
-                max_tokens = 16000
+                # Smart token allocation (like the working version)
+                # Estimate based on task count - keep it reasonable
+                estimated_tokens = len(tasks) * 300  # ~300 tokens per task
+                max_tokens = min(estimated_tokens + 1000, 4000)  # Cap at 4000 like before
 
                 logger.info(f"Using {max_tokens} max tokens for {len(tasks)} tasks in {filename}")
 

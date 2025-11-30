@@ -133,6 +133,43 @@ class ParserAgent:
                 # Log parsed data keys
                 logger.info(f"Parsed JSON keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
 
+                # Log template structure detection
+                template_structure = data.get('template_structure', {})
+                if template_structure and template_structure.get('has_template'):
+                    logger.info("=" * 80)
+                    logger.info("📋 TEMPLATE STRUCTURE DETECTED:")
+                    logger.info(f"  Has Template: {template_structure.get('has_template')}")
+                    logger.info(f"  Class Names: {template_structure.get('class_names', [])}")
+                    logger.info(f"  Variable Names: {template_structure.get('variable_names', [])}")
+                    logger.info(f"  Global Method Signatures: {template_structure.get('method_signatures', [])}")
+                    logger.info("=" * 80)
+
+                # Log detected files and classes with methods
+                files_list = data.get('files', [])
+                logger.info("=" * 80)
+                logger.info(f"📁 DETECTED {len(files_list)} FILE(S):")
+                for file_idx, file_data in enumerate(files_list, 1):
+                    filename = file_data.get('filename', 'unknown')
+                    logger.info(f"\n  FILE {file_idx}: {filename}")
+                    logger.info(f"    Purpose: {file_data.get('purpose', 'N/A')}")
+
+                    # Check if file has classes
+                    classes = file_data.get('classes', [])
+                    if classes:
+                        logger.info(f"    Classes: {len(classes)} detected")
+                        for class_idx, cls in enumerate(classes, 1):
+                            class_name = cls.get('class_name', 'Unknown')
+                            method_sigs = cls.get('method_signatures', [])
+                            logger.info(f"      CLASS {class_idx}: {class_name}")
+                            logger.info(f"        Purpose: {cls.get('purpose', 'N/A')}")
+                            logger.info(f"        Method Signatures: {method_sigs}")
+                            logger.info(f"        Tasks: {len(cls.get('tasks', []))}")
+                    else:
+                        # Simple file with tasks
+                        tasks = file_data.get('tasks', [])
+                        logger.info(f"    Simple file with {len(tasks)} tasks (no classes)")
+                logger.info("=" * 80)
+
                 validate_task_breakdown(data)
 
                 logger.info(f"Successfully parsed assignment on attempt {attempt + 1}")
