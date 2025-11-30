@@ -148,6 +148,133 @@ SPECIAL OUTPUT MATCHING FOR C#/Java COMPLEX TESTS:
 - Pattern match: "CONTAINS:word1,word2,word3" → Output must contain all these words/phrases
 - Count match: "COUNT:ThreadName:5" → Output must contain "ThreadName" exactly 5 times
 
+CRITICAL - DETECTING AND TESTING NON-DETERMINISTIC CODE:
+
+Non-deterministic code produces variable outputs across runs due to randomness, threading, or probability-based logic.
+You MUST detect these patterns and use appropriate testing strategies:
+
+DETECTION PATTERNS FOR NON-DETERMINISTIC CODE:
+
+1. Random Number Generation:
+   - Keywords: Random, random, rand, RandomNumberGenerator, Math.random, random.choice, random.randint
+   - Patterns: `new Random()`, `random.Next()`, `Math.random()`, `random.choice()`, `rand()`
+   - Examples: Credit card generation, dice rolls, random selection, lottery numbers
+
+2. Threading/Concurrency:
+   - Keywords: Thread, Task, async, await, Semaphore, lock, Monitor, mutex, pthread, goroutine
+   - Patterns: `new Thread()`, `Thread.Start()`, `Task.Run()`, `async/await`, `lock()`, `Semaphore`
+   - Examples: Producer-consumer, multi-threaded processing, parallel execution
+
+3. Probability-Based Logic:
+   - Patterns: `if random > 0.7`, `probability check`, `chance calculation`, `weighted selection`
+   - Examples: 70% valid credit cards, conditional ordering based on chance, event simulation
+
+4. Time-Dependent Behavior:
+   - Keywords: DateTime, timestamp, Sleep, Delay, time.sleep, Timer
+   - Patterns: `DateTime.Now`, `Thread.Sleep()`, execution timing varies
+   - Examples: Timestamp logging, scheduled tasks, timeout handling
+
+5. State Changes with Variable Order:
+   - Patterns: Event-driven updates, message queues, buffer operations, callback execution
+   - Examples: Event handlers firing in unpredictable order, async callbacks
+
+TESTING STRATEGY FOR NON-DETERMINISTIC CODE:
+
+When you detect ANY of the above patterns in the user's code:
+
+1. DO NOT use exact output matching
+2. USE "CONTAINS:pattern1,pattern2,pattern3" format
+3. Test for PRESENCE of expected elements, not exact text or order
+4. Focus on OBSERVABLE BEHAVIOR and PROGRAM CORRECTNESS, not specific values
+
+EXAMPLES OF NON-DETERMINISTIC TEST CASES:
+
+Example A - Random Credit Card Selection (DO NOT test exact card number):
+{{
+  "test_name": "test_credit_card_processing",
+  "function_name": "Main",
+  "input_data": "",
+  "expected_output": "CONTAINS:Credit card,processed,Travel Agent",
+  "description": "Verify credit card is randomly selected and processed (exact card number varies)",
+  "test_type": "normal"
+}}
+❌ WRONG: "expected_output": "Credit card 1234-5678-9012-3456 processed"
+✅ RIGHT: "expected_output": "CONTAINS:Credit card,processed"
+
+Example B - Threading with Variable Message Order:
+{{
+  "test_name": "test_multithreaded_execution",
+  "function_name": "Main",
+  "input_data": "",
+  "expected_output": "CONTAINS:Thread started,Thread completed,Processing,COUNT:Thread:5",
+  "description": "Verify all 5 threads execute (order may vary due to scheduling)",
+  "test_type": "normal"
+}}
+Note: Use COUNT: to verify expected number of threads without requiring specific order
+
+Example C - Probability-Based Order Confirmation (DO NOT test exact outcome):
+{{
+  "test_name": "test_order_confirmation_probability",
+  "function_name": "Main",
+  "input_data": "",
+  "expected_output": "CONTAINS:Travel Agent,Order,Hotel",
+  "description": "Verify order processing logic executes (confirmation probability varies)",
+  "test_type": "normal"
+}}
+Note: If confirmation only happens 30% of the time, don't require "Order confirmed" in output
+
+Example D - Random Price Generation:
+{{
+  "test_name": "test_price_calculation",
+  "function_name": "Main",
+  "input_data": "",
+  "expected_output": "CONTAINS:Price,$,Total",
+  "description": "Verify pricing system generates valid prices (exact values vary)",
+  "test_type": "normal"
+}}
+❌ WRONG: "expected_output": "Price: $150.00"
+✅ RIGHT: "expected_output": "CONTAINS:Price,$"
+
+Example E - Threading with Random Data (Hotel Booking System):
+{{
+  "test_name": "test_hotel_booking_multithreaded",
+  "function_name": "Main",
+  "input_data": "",
+  "expected_output": "CONTAINS:Travel Agent,Hotel,Order,room,Credit card,COUNT:Travel Agent:5",
+  "description": "Verify 5 travel agents and hotel thread coordinate bookings with random prices and cards",
+  "test_type": "normal"
+}}
+Note: Tests coordination and communication, not specific random values
+
+GENERAL RULES FOR NON-DETERMINISTIC CODE:
+
+1. If code uses Random/random → Use CONTAINS: for any values generated randomly
+2. If code uses Thread/async → Use CONTAINS: for any output that may arrive in variable order
+3. If code has probability checks → Test that code executes, not that specific branch is taken
+4. If code has timestamps → Use CONTAINS: for timestamp presence, not exact value
+5. If code has state changes → Test final state properties, not intermediate values
+
+ANTI-PATTERNS TO AVOID:
+
+❌ Testing exact random numbers: "expected_output": "Random number: 42"
+✅ Test random generation works: "expected_output": "CONTAINS:Random number"
+
+❌ Testing thread execution order: "expected_output": "Thread 1\\nThread 2\\nThread 3"
+✅ Test all threads execute: "expected_output": "COUNT:Thread:3"
+
+❌ Testing probability outcomes: "expected_output": "Order confirmed" (when only 30% chance)
+✅ Test logic executes: "expected_output": "CONTAINS:Order,processed"
+
+❌ Testing exact timestamps: "expected_output": "2025-01-15 10:30:45"
+✅ Test timestamp exists: "expected_output": "CONTAINS:2025,:"
+
+CONFIDENCE CHECK - Before finalizing each test:
+Ask yourself: "Will this test produce the SAME output every time the code runs?"
+- If NO → Use CONTAINS: or COUNT: patterns
+- If YES → Exact match is acceptable
+
+When in doubt, prefer CONTAINS: over exact matching for robustness.
+
 CRITICAL RESPONSE FORMAT:
 - Your response must be ONLY valid JSON array
 - Do NOT wrap in markdown code blocks (no ``` or ```json)
@@ -395,6 +522,51 @@ EXAMPLE 2 - Multi-class C# file with template:
         }}
     ]
 }}
+
+EXAMPLE 3 - Multi-file assignment (C kernel module + Makefile):
+{{
+    "overview": "Producer-consumer kernel module with compilation setup",
+    "total_estimated_time": "4 hours",
+    "template_structure": {{
+        "has_template": false,
+        "variable_names": [],
+        "class_names": []
+    }},
+    "files": [
+        {{
+            "filename": "producer_consumer.c",
+            "purpose": "Kernel module implementation with producer-consumer logic",
+            "classes": null,
+            "tasks": [
+                {{"id": 1, "title": "Module initialization", "description": "Create module init function", "dependencies": [], "estimated_time": "30 minutes", "concepts": ["Kernel modules", "Initialization"]}},
+                {{"id": 2, "title": "Producer implementation", "description": "Implement producer threads", "dependencies": [1], "estimated_time": "45 minutes", "concepts": ["Threading", "Semaphores"]}},
+                {{"id": 3, "title": "Consumer implementation", "description": "Implement consumer threads", "dependencies": [1], "estimated_time": "45 minutes", "concepts": ["Threading", "Semaphores"]}}
+            ]
+        }},
+        {{
+            "filename": "Makefile",
+            "purpose": "Build configuration for compiling kernel module",
+            "classes": null,
+            "tasks": [
+                {{"id": 4, "title": "Configure Makefile", "description": "Set up Makefile with obj-m, all, and clean targets for kernel module compilation", "dependencies": [], "estimated_time": "15 minutes", "concepts": ["Build systems", "Makefiles"]}}
+            ]
+        }}
+    ]
+}}
+
+🚨 CRITICAL - TASK ASSIGNMENT TO FILES:
+When you create multiple files, ensure each task goes to the CORRECT file:
+- Tasks related to source code logic → source file (e.g., .c, .py, .java)
+- Tasks related to building/compiling → Makefile/build file
+- Tasks related to configuration → config file
+- Tasks related to dependencies → package file (package.json, requirements.txt, etc.)
+
+Example task assignments:
+✅ CORRECT:
+   File: "server.js", Task: "Create HTTP server"
+   File: "package.json", Task: "Add express dependency"
+❌ WRONG:
+   File: "server.js", Task: "Create HTTP server" AND "Add express dependency"
 
 CRITICAL RULES:
 - Use "classes" array for multi-class files, set "tasks" to null
