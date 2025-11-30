@@ -33,6 +33,7 @@ export function TestCasesPanel({
   useEffect(() => {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     console.log(
       "🔄 TestCasesPanel: testCases prop changed, updating editedTests"
     );
@@ -40,6 +41,8 @@ export function TestCasesPanel({
     setEditedTests(testCases);
   }, [testCases]);
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
     if (editingTest === null) {
@@ -51,6 +54,9 @@ export function TestCasesPanel({
     }
   }, [testCases, editingTest]);
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
