@@ -71,6 +71,57 @@ CRITICAL - Detecting if code will have Main method:
 - Kernel modules, drivers → Will have Main/init, use function_name: "Main"
 - Simple utility functions → NO Main, use function_name: "ClassName.MethodName" or just "MethodName"
 
+CRITICAL - HANDLING LONG-RUNNING PROGRAMS:
+⚠️ The test runner has a 30-second timeout limit. Programs that run longer will be terminated.
+
+For assignments with threading, async operations, or simulations:
+1. **Modify the program to run briefly** - Add early termination logic
+2. **Test observable behavior quickly** - Check output within first few seconds
+3. **Use time-limited tests** - Test that threads START, not that they run forever
+
+EXAMPLES OF TIME-LIMITED TESTS:
+
+❌ BAD (will timeout):
+{{
+  "test_name": "test_infinite_producer_consumer",
+  "function_name": "Main",
+  "expected_output": "CONTAINS:Producer,Consumer,produced 1000 items"
+}}
+Problem: If program runs forever or takes >30s, test will timeout
+
+✅ GOOD (completes quickly):
+{{
+  "test_name": "test_producer_consumer_starts",
+  "function_name": "Main",
+  "expected_output": "CONTAINS:Producer started,Consumer started,produced,consumed"
+}}
+Solution: Test that threads START and produce SOME output, not that they complete fully
+
+STRATEGIES FOR LONG-RUNNING PROGRAMS:
+
+1. **Threading/Async Programs:**
+   - Test that threads/tasks are created
+   - Test that initial output appears
+   - Don't test completion if program runs indefinitely
+   - Example: "CONTAINS:Thread 1 started,Thread 2 started,Processing"
+
+2. **Simulations/Loops:**
+   - Test first few iterations only
+   - Test that loop starts and produces output
+   - Don't test final state if it takes >30s
+   - Example: "CONTAINS:Iteration 1,Iteration 2,Iteration 3"
+
+3. **Server/Daemon Programs:**
+   - Test that server starts
+   - Test initial connection/setup
+   - Don't test long-running behavior
+   - Example: "CONTAINS:Server started,Listening on port"
+
+4. **Programs with Sleep/Delay:**
+   - Assume student will use SHORT delays for testing
+   - Test observable behavior within first 5-10 seconds
+   - Example: If program sleeps 1s between iterations, test first 5 iterations
+
 C#/Java Test Decision Tree:
 1. Simple function (pure, stateless) → Direct call: `var result = FunctionName(input);`
 2. Class with state → Instantiate and test: `var obj = new ClassName(); obj.Method(); Console.WriteLine(obj.Property);`
@@ -85,6 +136,14 @@ For threading/concurrent assignments in C#/Java:
   * Expected number of messages
   * Synchronization correctness (no race conditions in output)
   * Completion markers ("All producers finished", etc.)
+
+⚠️ TIMEOUT CONSTRAINT:
+- Test runner has 30-second limit
+- For programs with infinite loops or long-running threads:
+  * Test INITIAL behavior (first 5-10 seconds)
+  * Use CONTAINS: patterns to check for expected output
+  * Don't require program completion
+  * Example: Instead of "All 1000 items processed", use "CONTAINS:Processing,Item 1,Item 2"
 
 FUNCTION NAME INFERENCE:
 - Look for explicit function names in the assignment (e.g., "Write a function called reverse_string")
@@ -113,6 +172,17 @@ Example 2 - C# threading assignment (observable behavior test):
   "test_type": "normal"
 }}
 Note: Use "CONTAINS:word1,word2,word3" format for tests that check if output contains certain patterns
+
+Example 2b - Long-running threading program (time-limited test):
+{{
+  "test_name": "test_hotel_booking_threads_start",
+  "function_name": "Main",
+  "input_data": "",
+  "expected_output": "CONTAINS:Travel Agent,Hotel,Order,room",
+  "description": "Verify hotel booking system starts threads and begins processing (tests first 10 seconds only)",
+  "test_type": "normal"
+}}
+Note: For programs that may run >30s, test INITIAL behavior only, not completion
 
 Example 3 - C# class method test (with namespace):
 {{
@@ -290,303 +360,129 @@ EXAMPLE VALID RESPONSE:
 
 def get_parser_prompt(assignment_text: str, target_language: str,
                       known_language: str, experience_level: str) -> str:
-    """
-    Agent 1: Assignment Parser (UPDATED FOR MULTI-FILE)
-    Parse assignment and break into ordered tasks organized by files
-    """
-    known_lang_context = f"\nKnown Language: {known_language}" if known_language else "\nNo prior programming experience"
+    """Parser for multi-file, multi-class assignments"""
 
-    return f"""You are an educational AI assistant that helps students learn programming by breaking down complex assignments.
+    return f"""Parse this assignment into structured tasks for a student to complete.
 
-Assignment Text:
-{assignment_text}
+Assignment: {assignment_text}
+Language: {target_language}
+Student Level: {experience_level}
 
-Target Language: {target_language}
-Student Experience Level: {experience_level}{known_lang_context}
+YOUR JOB:
+1. Identify ALL files mentioned (code files, data files, config files, etc.)
+2. For each file, create tasks that the student needs to complete
+3. Break complex implementations into 20-40 minute chunks
+4. Detect if template/boilerplate code is provided in the assignment
 
-Your task is to:
-1. Identify all files that need to be created for this assignment
-2. For each file, parse and identify required tasks
-3. Order tasks by logical dependencies (what must be done first)
-4. Break down complex tasks into smaller, manageable subtasks
-5. Estimate time for each task (be realistic)
-6. Identify key programming concepts for each task
+TEMPLATE DETECTION:
+- Template code = starter code provided in the assignment that students must complete
+- Look for code blocks, class definitions, method signatures in the assignment text
+- If you find template code:
+  * Set has_template: true
+  * Extract exact class names: ["ClassName1", "ClassName2"]
+  * Extract exact variable names that should be preserved
+  * Extract method signatures at GLOBAL level (functions not in classes): ["methodName(param1, param2)"]
+  * ALSO extract method signatures PER CLASS (see below)
+- If NO template code is provided:
+  * Set has_template: false
+  * Leave arrays empty
+  * Students will build from scratch
 
-TEMPLATE CODE DETECTION:
-If the assignment includes existing template/skeleton code:
-- EXTRACT the file and class structure from the template
-- IDENTIFY variable names, method signatures, class names used in template
-- PRESERVE these exact names - students must use them
-- Organize tasks by which class they belong to
-- 🚨 CRITICAL: Assign methods to their respective classes in BOTH places:
-  1. Global template_structure.method_signatures (all methods)
-  2. PER-CLASS in each class's method_signatures array (methods for that class ONLY)
+CRITICAL - METHOD SIGNATURE ASSIGNMENT:
+- If template provides methods INSIDE a class, put them in that class's "method_signatures" array
+- If template provides global functions (not in any class), put them in template_structure.method_signatures
+- Example: If you see "class Hotel {{ void UpdatePrice() {{...}} }}", put "UpdatePrice()" in Hotel's method_signatures
+- This helps preserve the exact structure students need to complete
 
-Example workflow:
-If template shows:
-public class BookingSystem {{
-    private Order[] orderQueue;
-    public void processBooking() {{ }}
-}}
-public class Order {{
-    private int orderId;
-    public int getOrderId() {{ }}
-}}
+TASK BREAKDOWN STRATEGY:
+- Code files: Break into logical implementation tasks (setup, core logic, error handling, etc.)
+- Data files: Create tasks for populating them (e.g., "Create Hotels.xml with sample hotel data")
+- Config files: Create tasks for configuration (e.g., "Set up database connection in config.json")
+- Multi-class files: Group tasks by class using the classes array
+- Simple files: Use flat tasks array
 
-You should detect:
-- Two classes: BookingSystem, Order
-- Variables to preserve: orderQueue (in BookingSystem), orderId (in Order)
-- Methods to preserve globally: processBooking(), getOrderId()
-- 🚨 BookingSystem class MUST have method_signatures: ["processBooking()"]
-- 🚨 Order class MUST have method_signatures: ["getOrderId()"]
-
-MULTI-CLASS FILE ORGANIZATION:
-For C#/Java files with multiple classes:
-
-Detection patterns:
-- Look for "public class ClassName" or "class ClassName"
-- Look for "ClassName.methodName()" references
-- Look for task descriptions mentioning class names
-
-🚨 CRITICAL RULE FOR CLASS DETECTION:
-- If template code shows "public class ClassName", you MUST create a class entry for it
-- EVERY class in the template MUST appear in your classes array
-- Do NOT skip classes - if it's in the template, it's required
-- Even classes with minimal code in template are needed for the structure
-
-IMPORTANT RULES:
-- Do NOT provide complete solutions or full implementations
-- Focus on breaking down WHAT needs to be done, not HOW to do it completely
-- Ensure dependencies are realistic (task 3 cannot depend on task 5)
-- Order tasks in a logical learning progression
-- Each task should be completable in one sitting (20-40 minutes typically)
-- If assignment requires multiple files, organize tasks by file
-- If assignment is single-file, still return one file in the structure
-
-FILE IDENTIFICATION GUIDELINES:
-- Look for explicit file mentions in the assignment (e.g., "Create main.py and utils.py")
-- Infer logical file separation (e.g., separate config, main logic, utilities)
-- For simple assignments, one file is fine
-- Include proper file extensions based on target language
-
-CONCEPT IDENTIFICATION GUIDELINES:
-When identifying concepts for each task, be SPECIFIC and distinguish between:
-- Basic concepts (loops, conditionals, variables) - these are universal
-- Language-specific features (LINQ, async/await, delegates, generics)
-- Advanced patterns (threading, concurrency, design patterns)
-- Framework-specific (WPF, ASP.NET, specific libraries)
-
-Good concept examples:
-- "Threading" not just "multithreading"
-- "Thread Safety" and "Locks" as separate concepts
-- "LINQ queries" not just "data processing"
-- "Async/await pattern" not just "asynchronous programming"
-- "Lambda expressions" as a distinct concept
-- "Delegates/Events" when applicable
-
-Return ONLY a valid JSON object with this EXACT structure:
-
-FOR SINGLE-CLASS OR SIMPLE FILES:
+OUTPUT STRUCTURE:
 {{
-    "overview": "Brief 2 sentence overview",
-    "total_estimated_time": "X hours",
-    "template_structure": {{
-        "has_template": false,
-        "variable_names": [],
-        "class_names": []
-    }},
-    "files": [
+  "overview": "Brief 2-sentence summary of assignment",
+  "total_estimated_time": "X hours Y minutes",
+  "template_structure": {{
+    "has_template": true/false,
+    "variable_names": ["exact_names_from_template"],
+    "class_names": ["ClassName1", "ClassName2"],
+    "method_signatures": ["method1()", "method2()"]
+  }},
+  "files": [
+    // MULTI-CLASS FILE (multiple classes in one file)
+    {{
+      "filename": "example.cs",
+      "purpose": "Brief description",
+      "classes": [
         {{
-            "filename": "main.py",
-            "purpose": "Brief description",
-            "classes": null,
-            "tasks": [
-                {{
-                    "id": 1,
-                    "title": "Short title",
-                    "description": "What to do",
-                    "dependencies": [],
-                    "estimated_time": "X minutes",
-                    "concepts": ["concept1", "concept2"]
-                }}
-            ]
+          "class_name": "ClassName",
+          "purpose": "What this class does",
+          "method_signatures": ["method1()", "method2()"],
+          "tasks": [
+            {{"id": 1, "title": "...", "description": "...", "dependencies": [], "estimated_time": "30 min", "concepts": ["..."]}}
+          ]
         }}
-    ]
+      ],
+      "tasks": null
+    }},
+    // SIMPLE FILE (single class or no classes)
+    {{
+      "filename": "utils.py",
+      "purpose": "Brief description",
+      "classes": null,
+      "tasks": [
+        {{"id": 2, "title": "...", "description": "...", "dependencies": [1], "estimated_time": "20 min", "concepts": ["..."]}}
+      ]
+    }}
+  ]
 }}
 
-FOR MULTI-CLASS FILES WITH TEMPLATE:
+KEY RULES:
+1. EVERY file needs tasks - code files AND data files AND config files
+2. Multi-class files: use "classes" array (set "tasks" to null)
+3. Simple files: use "tasks" array (set "classes" to null)
+4. NEVER have both "classes" and "tasks" in the same file
+5. Dependencies are INTEGERS (task IDs), not strings: [1, 2] not ["Task 1"]
+6. Include ALL files mentioned in assignment (don't skip data/config files)
+7. CRITICAL: Assign method_signatures to the CLASS they belong to, NOT globally
+
+EXAMPLE - Correct Method Signature Assignment:
+If template provides:
+```
+class Hotel {{
+  void UpdatePrice() {{ }}
+  void ProcessOrder() {{ }}
+}}
+class TravelAgent {{
+  void CreateOrder() {{ }}
+}}
+```
+
+Correct output:
 {{
-    "overview": "Brief 2 sentence overview",
-    "total_estimated_time": "X hours",
-    "template_structure": {{
-        "has_template": true,
-        "variable_names": ["orderQueue", "orderId", "userName"],
-        "class_names": ["BookingSystem", "Order", "User"],
-        "method_signatures": ["processBooking()", "getOrderId()"]
-    }},
-    "files": [
-        {{
-            "filename": "Program.cs",
-            "purpose": "Multi-class booking system",
-            "classes": [
-                {{
-                    "class_name": "BookingSystem",
-                    "purpose": "Main booking logic",
-                    "method_signatures": ["processBooking()"],
-                    "tasks": [
-                        {{
-                            "id": 1,
-                            "title": "Initialize booking queue",
-                            "description": "Set up orderQueue array",
-                            "template_variables": ["orderQueue"],
-                            "dependencies": [],
-                            "estimated_time": "20 minutes",
-                            "concepts": ["Arrays", "Initialization"]
-                        }}
-                    ]
-                }},
-                {{
-                    "class_name": "Order",
-                    "purpose": "Order data structure",
-                    "method_signatures": ["getOrderId()"],
-                    "tasks": [...]
-                }}
-            ],
-            "tasks": null
-        }}
+  "template_structure": {{
+    "has_template": true,
+    "class_names": ["Hotel", "TravelAgent"],
+    "method_signatures": []  // Empty - all methods belong to classes
+  }},
+  "files": [{{
+    "classes": [
+      {{
+        "class_name": "Hotel",
+        "method_signatures": ["UpdatePrice()", "ProcessOrder()"]  // Hotel's methods HERE
+      }},
+      {{
+        "class_name": "TravelAgent",
+        "method_signatures": ["CreateOrder()"]  // TravelAgent's methods HERE
+      }}
     ]
+  }}]
 }}
 
-EXAMPLE 1 - Simple Python file (no template, no classes):
-{{
-    "overview": "Basic calculator with arithmetic operations",
-    "total_estimated_time": "1.5 hours",
-    "template_structure": {{
-        "has_template": false,
-        "variable_names": [],
-        "class_names": []
-    }},
-    "files": [
-        {{
-            "filename": "calculator.py",
-            "purpose": "Arithmetic operations",
-            "classes": null,
-            "tasks": [
-                {{"id": 1, "title": "Create add function", "description": "...", "dependencies": [], "estimated_time": "15 minutes", "concepts": ["Functions"]}}
-            ]
-        }}
-    ]
-}}
-
-EXAMPLE 2 - Multi-class C# file with template:
-{{
-    "overview": "Library management system with books and members",
-    "total_estimated_time": "6 hours",
-    "template_structure": {{
-        "has_template": true,
-        "variable_names": ["bookList", "memberId", "borrowDate"],
-        "class_names": ["Library", "Book", "Member"],
-        "method_signatures": ["addBook(Book b)", "getMemberId()"]
-    }},
-    "files": [
-        {{
-            "filename": "LibrarySystem.cs",
-            "purpose": "Library management with multiple classes",
-            "classes": [
-                {{
-                    "class_name": "Library",
-                    "purpose": "Manages book collection",
-                    "method_signatures": ["addBook(Book b)"],
-                    "tasks": [
-                        {{"id": 1, "title": "Initialize book list", "description": "Create bookList array", "template_variables": ["bookList"], "dependencies": [], "estimated_time": "20 minutes", "concepts": ["Collections"]}}
-                    ]
-                }},
-                {{
-                    "class_name": "Book",
-                    "purpose": "Book data",
-                    "method_signatures": [],
-                    "tasks": [
-                        {{"id": 2, "title": "Add book properties", "description": "...", "template_variables": [], "dependencies": [], "estimated_time": "15 minutes", "concepts": ["Classes"]}}
-                    ]
-                }},
-                {{
-                    "class_name": "Member",
-                    "purpose": "Library member data",
-                    "method_signatures": ["getMemberId()"],
-                    "tasks": [
-                        {{"id": 3, "title": "Create member ID getter", "description": "...", "template_variables": ["memberId"], "dependencies": [], "estimated_time": "10 minutes", "concepts": ["Encapsulation"]}}
-                    ]
-                }}
-            ],
-            "tasks": null
-        }}
-    ]
-}}
-
-EXAMPLE 3 - Multi-file assignment (C kernel module + Makefile):
-{{
-    "overview": "Producer-consumer kernel module with compilation setup",
-    "total_estimated_time": "4 hours",
-    "template_structure": {{
-        "has_template": false,
-        "variable_names": [],
-        "class_names": []
-    }},
-    "files": [
-        {{
-            "filename": "producer_consumer.c",
-            "purpose": "Kernel module implementation with producer-consumer logic",
-            "classes": null,
-            "tasks": [
-                {{"id": 1, "title": "Module initialization", "description": "Create module init function", "dependencies": [], "estimated_time": "30 minutes", "concepts": ["Kernel modules", "Initialization"]}},
-                {{"id": 2, "title": "Producer implementation", "description": "Implement producer threads", "dependencies": [1], "estimated_time": "45 minutes", "concepts": ["Threading", "Semaphores"]}},
-                {{"id": 3, "title": "Consumer implementation", "description": "Implement consumer threads", "dependencies": [1], "estimated_time": "45 minutes", "concepts": ["Threading", "Semaphores"]}}
-            ]
-        }},
-        {{
-            "filename": "Makefile",
-            "purpose": "Build configuration for compiling kernel module",
-            "classes": null,
-            "tasks": [
-                {{"id": 4, "title": "Configure Makefile", "description": "Set up Makefile with obj-m, all, and clean targets for kernel module compilation", "dependencies": [], "estimated_time": "15 minutes", "concepts": ["Build systems", "Makefiles"]}}
-            ]
-        }}
-    ]
-}}
-
-🚨 CRITICAL - TASK ASSIGNMENT TO FILES:
-When you create multiple files, ensure each task goes to the CORRECT file:
-- Tasks related to source code logic → source file (e.g., .c, .py, .java)
-- Tasks related to building/compiling → Makefile/build file
-- Tasks related to configuration → config file
-- Tasks related to dependencies → package file (package.json, requirements.txt, etc.)
-
-Example task assignments:
-✅ CORRECT:
-   File: "server.js", Task: "Create HTTP server"
-   File: "package.json", Task: "Add express dependency"
-❌ WRONG:
-   File: "server.js", Task: "Create HTTP server" AND "Add express dependency"
-
-CRITICAL RULES:
-- Use "classes" array for multi-class files, set "tasks" to null
-- Use "tasks" array for simple files, set "classes" to null
-- NEVER use both classes and tasks at the same level
-- Extract template variable names if template exists
-- 🚨 CRITICAL: Each class MUST have method_signatures array (empty [] if no methods, NOT missing!)
-- 🚨 If template has methods, assign EACH method to its correct class's method_signatures array
-- Task IDs must be unique across entire response
-- 🚨 EVERY class in template code MUST appear in classes array (don't skip any!)
-- 🚨 Count classes in template carefully - if template has 6 classes, you MUST output 6 class entries
-
-CRITICAL RESPONSE FORMAT:
-- ONLY valid JSON, no markdown, no explanations
-- Start with {{ and end with }}
-- Must include "template_structure" field
-- Task IDs unique across ALL files
-- No code blocks, no comments"""
-
-
+Return ONLY valid JSON."""
 
 def get_helper_prompt(task_description: str, concepts: list, student_code: str,
                       question: str, previous_hints: list, help_count: int,
@@ -868,416 +764,261 @@ EXAMPLE VALID RESPONSE:
 {{"hint": "Try using a loop here", "hint_type": "gentle_hint", "example_code": null}}"""
 
 
+def get_non_code_file_prompt(tasks_data: list, filename: str) -> str:
+    """
+    Generate prompt for non-code files (data, config, build files, etc.)
+    These should contain actual content, not code to generate them
+    """
+    if not tasks_data:
+        return ""
+
+    # Get file extension and base name to determine format
+    ext = filename.split('.')[-1].lower() if '.' in filename else ''
+    basename = filename.lower()
+
+    # Build task descriptions
+    tasks_description = ""
+    for i, task in enumerate(tasks_data, 1):
+        tasks_description += f"\nTask {i}: {task['task_description']}"
+
+    # Detect file type and provide specific guidance
+    if basename == 'makefile' or basename.startswith('makefile'):
+        file_type = "Makefile"
+        guidance = "Generate a valid Makefile with targets, dependencies, and build commands using tab indentation"
+    elif basename in ['dockerfile', 'dockerfile.dev', 'dockerfile.prod']:
+        file_type = "Dockerfile"
+        guidance = "Generate a valid Dockerfile with FROM, RUN, COPY, CMD instructions"
+    elif basename == 'cmakelists.txt':
+        file_type = "CMakeLists.txt"
+        guidance = "Generate a valid CMake configuration with project(), add_executable(), etc."
+    elif ext in ['xml', 'xsd']:
+        file_type = ext.upper()
+        guidance = "Generate valid XML/XSD with proper structure, elements, and attributes"
+    elif ext in ['json', 'yaml', 'yml', 'toml']:
+        file_type = ext.upper()
+        guidance = f"Generate valid {ext.upper()} with proper structure and data types"
+    elif ext in ['sh', 'bat', 'ps1']:
+        file_type = "Shell Script"
+        guidance = f"Generate a valid {ext} script with proper syntax and commands"
+    elif ext in ['properties', 'ini', 'cfg', 'env']:
+        file_type = "Config File"
+        guidance = f"Generate a valid {ext} config file with key-value pairs"
+    elif basename.endswith('ignore'):
+        file_type = "Ignore File"
+        guidance = f"Generate a {filename} file with appropriate glob patterns"
+    else:
+        file_type = ext.upper() if ext else "file"
+        guidance = "Generate appropriate content for this file format"
+
+    return f"""Generate MINIMAL starter content for {file_type}: {filename}
+
+TASKS:{tasks_description}
+
+IMPORTANT - KEEP IT SHORT:
+- Generate only 2-3 sample entries (NOT 10+)
+- Keep total content under 50 lines
+- Students will expand this file themselves
+- Focus on demonstrating structure, not filling with data
+
+CRITICAL INSTRUCTIONS:
+1. Generate the ACTUAL {file_type} content - NOT code to create it
+2. This is NOT a source code file - it's a {file_type.lower()}
+3. {guidance}
+4. Include helpful comments where appropriate
+5. Create realistic, functional content that demonstrates proper structure
+6. For Makefiles: Use TABS (\\t) for indentation, not spaces
+7. Make it ready to use with minimal modifications
+
+JSON OUTPUT FORMAT (CRITICAL):
+- NO markdown code blocks (no ```)
+- Escape ALL newlines as \\n
+- Escape ALL tabs as \\t
+- Escape ALL quotes as \\"
+- The entire file content must be on ONE LINE in the JSON string
+
+CORRECT EXAMPLE:
+{{
+  "code_snippet": "<?xml version=\\"1.0\\"?>\\n<hotels>\\n  <hotel>\\n    <name>Grand Hotel</name>\\n  </hotel>\\n</hotels>",
+  "task_todos": {{
+    "1": ["Review and customize as needed", "Test functionality"]
+  }}
+}}
+
+WRONG (will fail):
+{{
+  "code_snippet": "<?xml version=\\"1.0\\"?>
+<hotels>
+  <hotel>
+"""
+
+
 def get_file_codegen_prompt(tasks_data: list, filename: str,
                             class_structure: dict = None,
                             template_variables: list = None,
                             method_signatures_by_class: dict = None) -> str:
     """
-    Generate prompt for creating ONE complete file with ALL its tasks.
-    Focused approach for better quality than batch generation.
-
-    Args:
-        tasks_data: List of task dicts for THIS file only
-        filename: Name of file being generated
-        class_structure: Dict of {class_name: [tasks]} or None for single-class
-        template_variables: List of variable names to preserve from template, or None
-        method_signatures_by_class: Dict of {class_name: [method_names]} for template methods
+    Generate scaffolding for ONE complete file with proper TODOs based on experience level.
     """
-
     if not tasks_data:
         return ""
 
-    # Determine language and comment style
+    # Language detection and comment style
     language = tasks_data[0].get('programming_language', 'python').lower()
-
-    # Languages that use # for comments (Python, Shell scripts, etc.)
-    if language in ['python', 'bash', 'shell', 'ruby', 'perl', 'yaml', 'toml']:
-        comment_style = '#'
-        comment_example = '# TODO: Implement this'
-    # C/C++ and Makefile use // for code comments (even in Makefile context, the C code uses //)
-    else:
-        comment_style = '//'
-        comment_example = '// TODO: Implement this'
-
-    # Detect if multi-class file
+    comment_style = '#' if language in ['python', 'bash', 'shell', 'ruby', 'perl', 'yaml', 'toml'] else '//'
+    
+    # Structure detection
     is_multi_class = class_structure and len(class_structure) > 1
     class_list = sorted(class_structure.keys()) if class_structure else []
-
-    # Build structure guidance
-    if is_multi_class:
-
-        structure_guidance = f"""
-MULTI-CLASS FILE - CRITICAL STRUCTURE:
-
-This file requires {len(class_list)} separate classes: {', '.join(class_list)}
-
-Required structure:
-```
-using System;
-
-namespace YourNamespace
-{{
-    public class {class_list[0]}
-    {{
-        // All tasks for {class_list[0]} go here
-    }}
-
-    public class {class_list[1] if len(class_list) > 1 else 'SecondClass'}
-    {{
-        // All tasks for this class go here
-    }}
-
-    // ... additional classes
-}}
-```
-
-RULES:
-- Create exactly {len(class_list)} classes in this order: {', '.join(class_list)}
-- Each task belongs to a specific class - check the task's class assignment
-- Complete each class before starting the next
-- All classes inside ONE namespace
-- Methods MUST be inside classes - never at top level
-
-Task distribution:"""
-        for class_name in class_list:
-            if class_name in class_structure:
-                class_tasks_list = class_structure[class_name]
-                task_ids = [str(i+1) for i, t in enumerate(tasks_data) if t.get('class_name') == class_name]
-                structure_guidance += f"\n- {class_name}: tasks {', '.join(task_ids) if task_ids else 'check below'}"
-    else:
-        structure_guidance = f"""
-SINGLE-CLASS FILE:
-Generate ONE complete file with ONE main class containing all {len(tasks_data)} tasks.
-Keep it simple and well-structured.
-"""
-
-    # Template variable preservation
-    if template_variables:
-        template_guidance = f"""
-CRITICAL - TEMPLATE VARIABLE PRESERVATION:
-This assignment includes a template with specific variable names.
-YOU MUST use these EXACT variable names:
-{', '.join(template_variables)}
-
-NEVER rename these variables. Students are graded on using the correct names.
-Examples:
-- If template has "orderQueue", use "orderQueue" (not "queue" or "orders")
-- If template has "memberId", use "memberId" (not "id" or "member_id")
-
-Check each task for template_variables field and use those exact names.
-"""
-    else:
-        template_guidance = ""
-
-    # Method signature preservation
-    method_guidance = ""
-    if method_signatures_by_class:
-        method_guidance = "\n🚨 CRITICAL - TEMPLATE METHOD PRESERVATION 🚨\n\nYOU MUST CREATE THESE EXACT METHODS:\n"
-        for class_name, methods in method_signatures_by_class.items():
-            if methods:
-                method_guidance += f"\n{class_name} class:\n"
-                for method in methods:
-                    method_guidance += f"  - {method}()\n"
-        method_guidance += "\n ⚠️ Use EXACT names. Wrong names = autograder failure ⚠️\n"
-
-    # Multi-class guidance (don't add examples that cause duplication)
-    multi_class_example = ""
-
-    # Build task descriptions
+    
+    # Build task descriptions (CRITICAL - must include what to implement!)
     tasks_description = ""
     for i, task in enumerate(tasks_data, 1):
-        concepts_str = ", ".join(task.get('concepts', []))
-        exp_level = task.get('experience_level', 'intermediate')
-        target_class = task.get('class_name', 'Program')
-        template_vars = task.get('template_variables', [])
-
         tasks_description += f"""
-=== TASK {i} ===
-Target Class: {target_class}
-Description: {task['task_description']}
-Concepts: {concepts_str}
-Experience Level: {exp_level}
-"""
+Task {i}: {task['task_description']}
+  Class: {task.get('class_name', 'Program')}
+  Concepts: {', '.join(task.get('concepts', []))}
+  Experience: {task.get('experience_level', 'intermediate')}
+  
+  WHAT TO IMPLEMENT:
+  - Read the task description carefully
+  - Create method(s) that accomplish this specific task
+  - Add TODOs inside the method body based on experience level
+  - Ensure the method signature matches what the task requires"""
+        if task.get('template_variables'):
+            tasks_description += f"\n  Preserve variables: {', '.join(task['template_variables'])}"
 
-        if template_vars:
-            tasks_description += f"MUST use these variable names: {', '.join(template_vars)}\n"
+    # Template preservation section (if needed)
+    template_section = ""
+    if template_variables or method_signatures_by_class:
+        template_section = "\nTEMPLATE REQUIREMENTS:"
+        if template_variables:
+            template_section += f"\n- Preserve exact variable names: {', '.join(template_variables)}"
+        if method_signatures_by_class:
+            template_section += "\n- Create these exact methods:"
+            for cls, methods in method_signatures_by_class.items():
+                template_section += f"\n  {cls}: {', '.join(methods)}"
 
-    # C#/Java specific structure guidance
-    file_structure_guidance = ""
-    if language in ['csharp', 'c#', 'java']:
-        file_structure_guidance = f"""
+    # Class structure section (if multi-class)
+    structure_section = ""
+    if is_multi_class:
+        structure_section = f"\nFILE STRUCTURE: Create {len(class_list)} classes: {', '.join(class_list)}"
+        for cls in class_list:
+            task_count = len([t for t in tasks_data if t.get('class_name') == cls])
+            structure_section += f"\n- {cls}: {task_count} tasks"
 
-CRITICAL C#/JAVA FILE STRUCTURE:
-This is ONE file ({filename}) that contains ALL {len(tasks_data)} tasks.
+    # Language-specific requirements
+    lang_requirements = {
+        'csharp': "Use ONE namespace containing all classes. Include: using System; etc.",
+        'c#': "Use ONE namespace containing all classes. Include: using System; etc.",
+        'java': "Use ONE package. Include proper imports. Main class must be public.",
+        'c': "Include headers: #include <stdio.h>, etc. Use proper function prototypes.",
+        'c++': "Include headers. Use namespace std or explicit std:: prefixes.",
+        'python': "Include imports at top. Use proper indentation (4 spaces).",
+        'javascript': "Use modern ES6+ syntax. Include 'use strict' if needed.",
+        'typescript': "Include type annotations. Define interfaces where appropriate."
+    }
+    
+    lang_specific = lang_requirements.get(language, "")
 
-YOU MUST:
-1. Generate ONE namespace/package declaration at the TOP
-2. Generate ONE class definition  
-3. Put ALL methods, fields, and logic from ALL {len(tasks_data)} tasks INSIDE this ONE class
-4. Do NOT create separate class definitions for each task
-5. Do NOT repeat namespace or using statements for each task
+    return f"""Generate scaffolding code for: {filename}
 
-CORRECT STRUCTURE for {len(tasks_data)} tasks:
-```csharp
-using System;
-using System.Xml;
-// ... all necessary imports at top
+CRITICAL INSTRUCTIONS:
+- You are creating STARTER CODE for students to complete
+- Generate syntactically valid code with EMPTY method bodies
+- Place TODOs inside methods to guide students
+- Do NOT implement the full logic - students will do that
+- Focus on creating the right structure and clear guidance
 
-namespace ConsoleApp1
+ASSIGNMENT TASKS:{tasks_description}
+{structure_section}
+{template_section}
+
+REQUIREMENTS:
+1. Language: {language}
+2. Comment style: {comment_style} for all TODOs
+3. Generate ONE complete file with SCAFFOLDING CODE - each class appears EXACTLY ONCE
+4. Include method signatures with EMPTY bodies containing TODOs (NOT full implementations)
+5. The code should be SYNTACTICALLY VALID but NOT functionally complete
+6. {lang_specific}
+
+CRITICAL - AVOID DUPLICATION:
+- Each class declaration must appear EXACTLY ONCE in code_snippet
+- Do NOT repeat class declarations in comments or examples
+- If the file has "class Program", it should appear exactly 1 time in the entire code
+
+TODO GUIDELINES BY EXPERIENCE (CRITICAL - Follow exactly):
+
+BEGINNER (5-8 TODOs per task):
+- Break down EVERY step of the implementation
+- Include TODOs for variable declarations, loops, conditionals, return statements
+- Use simple, instructional language
+- Example for "validate input" task:
+  {comment_style} TODO: Check if input is null or empty
+  {comment_style} TODO: Check if input length is within valid range (1-100)
+  {comment_style} TODO: Check if input contains only allowed characters
+  {comment_style} TODO: If any validation fails, return false
+  {comment_style} TODO: If all validations pass, return true
+
+INTERMEDIATE (3-5 TODOs per task):
+- Group related steps into logical sections
+- Assume basic programming knowledge
+- Focus on the main logic blocks
+- Example for "validate input" task:
+  {comment_style} TODO: Validate input is not null/empty and within length limits
+  {comment_style} TODO: Check input contains only allowed characters
+  {comment_style} TODO: Return validation result
+
+ADVANCED (1-3 TODOs per task):
+- High-level implementation goals only
+- Assume strong programming skills
+- Minimal guidance
+- Example for "validate input" task:
+  {comment_style} TODO: Implement input validation logic
+  {comment_style} TODO: Return validation result
+
+PLACEMENT RULES:
+- Place TODOs INSIDE method bodies where code should be written
+- Do NOT put TODOs in class declarations or import statements
+- Each TODO should describe ONE specific action to take
+- TODOs should be ordered in the sequence they need to be implemented
+
+SPECIAL HANDLING:
+
+Threading/Async ({language}):
+- Include thread creation structure
+- Add synchronization primitives (mutex/semaphore/lock)
+- TODO for thread safety considerations
+
+File I/O:
+- Include file handling structure (open/close)
+- Add error handling scaffolding
+- TODO for exception handling
+
+Networking:
+- Include connection setup/teardown
+- Add protocol handling structure
+- TODO for error recovery
+
+Data Structures:
+- Initialize with proper type declarations
+- Include size/capacity management
+- TODO for boundary checking
+
+JSON OUTPUT (NO ```):
 {{
-    public class Program
-    {{
-        // ===== TASK 1 =====
-        // Fields/methods from task 1
-        
-        // ===== TASK 2 =====
-        // Fields/methods from task 2
-        
-        // ===== TASK 3 =====
-        // Fields/methods from task 3
-        
-        // ... all tasks integrated in ONE class
-    }}
-}}
-```
-
-WRONG - NEVER DO THIS:
-```csharp
-// ===== TASK 1 =====
-namespace App {{ class Program {{ }} }}
-
-// ===== TASK 2 =====
-namespace App {{ class Program {{ }} }}  ← DUPLICATE CLASS! COMPILATION ERROR!
-```
-
-Generate ONE complete, compilable {filename} with ALL tasks integrated into ONE class.
-"""
-
-    requirement_extraction_guidance = """
-CRITICAL - REQUIREMENT EXTRACTION FROM ASSIGNMENT:
-
-Before generating code, carefully read the task descriptions for:
-
-1. EXACT NAMING REQUIREMENTS:
-   - Look for phrases: "MUST name", "you MUST call", "name it exactly"
-   - Look for quoted names: "Producer-1", "thread-worker-01"
-   - Preserve: capitalization, punctuation (dashes, underscores), numbering style
-   - Example: If task says 'name threads "Producer-1"' → use "Producer-%d" with i+1
-
-2. REQUIRED PRIMITIVES/LIBRARIES:
-   - Look for: "use X", "implement using Y", "with Z library"
-   - Do NOT substitute similar alternatives
-   - Example: "implement with semaphores" → use semaphores (not mutex, not locks)
-   - Example: "use OrderedDict" → use OrderedDict (not regular dict)
-
-3. EXACT OUTPUT FORMATS:
-   - Look for example outputs in quotes or brackets
-   - Example: "[Producer-1] has produced item 5" → preserve brackets, exact wording
-   - Include complete format string in TODO comments for students
-   - Show example with variable names: printk(KERN_INFO "[Producer-%d] has produced...", id, ...)
-
-4. DATA STRUCTURE IMPLICATIONS:
-   - Parameters like "number of X" → create array/list to hold 0-N items
-   - Example: "prod: number of producers" → need producer array, not single variable
-   - Example: "size: buffer size" → need buffer of that size
-   - Don't assume quantity=1 when parameter allows variable quantity
-
-5. REQUIRED REGISTRATIONS/BOILERPLATE:
-   - Look for "module must", "you must register", "required macros"
-   - Include these even if TODO, so students know they're required
-   - Example: kernel modules need module_init/module_exit
-   - Example: Flask apps need app.run()
-
-6. COMPLIANCE KEYWORDS:
-   - "MUST", "REQUIRED", "exactly", "specifically" → follow literally
-   - "may", "can", "optional" → include as TODO for flexibility
-   - "do NOT", "never", "avoid" → add warning in comments
-
-EXTRACTION PROCESS:
-1. Read ALL task descriptions first
-2. Extract explicit requirements (MUST, exact names, specific libraries)
-3. Infer structural requirements (arrays for "number of X" parameters)
-4. Include extracted requirements in relevant TODO comments
-5. Don't add requirements that aren't mentioned
-
-REQUIREMENT EXTRACTION EXAMPLES:
-
-Example 1 - Exact Naming:
-Task: "Create threads named 'Worker-1', 'Worker-2', etc."
-Extraction: Must use "Worker-%d" format with 1-based indexing
-Action: Include in TODO: "Name threads 'Worker-1', 'Worker-2' using format string"
-
-Example 2 - Required Primitive:
-Task: "Implement synchronization using semaphores"
-Extraction: Must use semaphore library/primitives, not alternatives
-Action: Declare semaphore variables, use down()/up() operations
-
-Example 3 - Output Format:
-Task: "Log messages like: [Thread-5] Processing item 42"
-Extraction: Exact format with brackets, "Processing item", variable positions
-Action: TODO comment shows: printk(KERN_INFO "[Thread-%d] Processing item %d", id, item)
-
-Example 4 - Data Structure:
-Task: "Parameter 'workers' specifies number of worker threads"
-Extraction: Need array to hold 0-N threads, not single thread variable
-Action: Declare: struct task_struct **worker_threads;
-
-Example 5 - What NOT to extract:
-Task: "Implement a producer-consumer pattern"
-Extraction: No specific requirements, just the pattern
-Action: Use reasonable defaults, let student make choices
-"""
-
-    return f"""Generate SCAFFOLDING CODE (starter code with TODOs) for ONE file in a programming assignment.
-
-CRITICAL - SCAFFOLDING NOT SOLUTIONS:
-⚠️  DO NOT write complete implementations
-⚠️  DO NOT solve the problems for students
-✓  Provide structure: class definitions, method signatures, variable declarations
-✓  Use TODO comments to mark where students should write code
-✓  Show the skeleton/framework, students fill in the logic
-
-FILE: {filename}
-LANGUAGE: {language}
-NUMBER OF TASKS: {len(tasks_data)}
-
-{requirement_extraction_guidance}
-
-{structure_guidance}
-
-{template_guidance}
-{method_guidance}
-
-Tasks for this file:
-{tasks_description}
-
-CRITICAL REQUIREMENTS:
-1. Generate ONE complete, valid, compilable file: {filename}
-2. {"Create all " + str(len(class_list)) + " classes with proper structure" if is_multi_class else "Use proper single-class structure"}
-3. Include relevant TODOs for each task
-4. Use CONSISTENT variable names throughout this ENTIRE file
-5. Proper {language} syntax
-6. Comment style: Use "{comment_style}" for ALL comments and TODOs
-7. Example: {comment_example}
-
-LANGUAGE-SPECIFIC RULES:
-{"- NEVER use # for comments in this language (causes compilation errors)" if comment_style == '//' else ""}
-{"- MUST include ONE namespace with ALL " + str(len(class_list)) + " classes inside it" if is_multi_class and language in ['csharp', 'c#', 'java'] else ""}
-{"- MUST include ONE class with all tasks inside it" if not is_multi_class and language in ['csharp', 'c#', 'java'] else ""}
-{"- C/C++: Include necessary headers (#include) at top" if language in ['c', 'c++', 'cpp'] else ""}
-{"- Python: Include imports at top" if language == 'python' else ""}
-{file_structure_guidance}
-
-VARIABLE NAMING - CRITICAL:
-{"- YOU MUST use the EXACT variable names from the template: " + ", ".join(template_variables) if template_variables else ""}
-{"- NEVER rename template variables (e.g., don't change 'orderQueue' to 'queue')" if template_variables else ""}
-- When you introduce NEW variables, choose clear names
-- Use that EXACT same name in ALL tasks throughout this file
-- NEVER rename variables between tasks (e.g., don't change "shared_buffer" to "buffer")
-- Consistency is CRITICAL for student learning
-
-EXPERIENCE LEVEL GUIDANCE:
-For EACH task, generate appropriate number of TODOs based on experience level:
-
-- Beginner (5-8 TODOs per task):
-  * Provide MORE granular step-by-step TODOs
-  * Include function/method signatures with parameter types
-  * Add helpful inline comments and hints
-  * Break down complex logic into smaller steps
-  * Example: "TODO: Create variable X", "TODO: Loop through items", "TODO: Check if condition", "TODO: Update result"
-
-- Intermediate (3-5 TODOs per task):
-  * Moderate guidance with clear TODO markers
-  * Provide structure but let student implement logic
-  * TODOs at function/section level, not line-by-line
-  * Student figures out the details within each TODO
-  * Example: "TODO: Implement input validation", "TODO: Process data", "TODO: Return result"
-
-- Advanced (1-3 TODOs per task):
-  * Minimal scaffolding with high-level TODOs only
-  * Assume student knows patterns and can break down problems
-  * TODOs mark major sections/components only
-  * Student implements everything with minimal guidance
-  * Example: "TODO: Implement the main algorithm", "TODO: Handle edge cases"
-
-CRITICAL: Adjust TODO count per task based on experience_level field!
-
-REMINDER - WHAT TO INCLUDE IN code_snippet:
-✓  Variable declarations (but NOT initialized with actual values students should compute)
-✓  Function/method signatures (with parameter types and return types)
-✓  Class structure and inheritance
-✓  Import/include statements
-✓  TODO comments marking where logic goes
-✓  Empty method bodies or simple return statements (return 0, return null, etc.)
-✗  DO NOT include actual algorithm implementations
-✗  DO NOT include complete logic (loops, conditionals with actual logic)
-✗  DO NOT solve the problems - leave that for students
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-BEFORE GENERATING - REQUIREMENT VERIFICATION CHECKLIST
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-STOP AND VERIFY YOU HAVE:
-□ Read ALL task descriptions carefully for explicit requirements
-□ Identified any MUST/REQUIRED/exactly keywords and followed them literally
-□ Checked for quoted names or formats that must be preserved exactly
-□ Identified required libraries/primitives (not substituted alternatives)
-□ Created appropriate data structures for variable quantities (arrays for "number of X")
-□ Included required boilerplate/registrations mentioned in tasks
-□ Added requirement details to TODO comments where applicable
-□ Used exact variable names from template (if template_variables provided)
-□ Only added requirements that ARE mentioned (not assumed)
-
-If assignment doesn't specify something → you have freedom to choose reasonable defaults
-If assignment DOES specify something → you MUST follow it exactly
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CRITICAL JSON RESPONSE FORMAT - READ CAREFULLY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-{multi_class_example}
-
-Your response MUST be ONLY valid JSON in this EXACT format:
-
-{{
-    "tasks": [
-        {{
-            "task_number": 1,
-            "filename": "{filename}",
-            "code_snippet": "code here with \\n for newlines",
-            "instructions": "brief guidance",
-            "todos": ["todo 1", "todo 2", "todo 3"]
-        }},
-        {{
-            "task_number": 2,
-            "filename": "{filename}",
-            "code_snippet": "code here with \\n for newlines",
-            "instructions": "brief guidance",
-            "todos": ["todo 1", "todo 2"]
-        }}
-    ]
+  "code_snippet": "complete file code here with \\n for newlines",
+  "task_todos": {{
+    "1": ["todo for task 1", "another todo for task 1"],
+    "2": ["todo for task 2", "another todo for task 2"],
+    "3": ["todo for task 3"]
+  }}
 }}
 
-ABSOLUTE REQUIREMENTS:
-1. Start your response with {{ (opening brace)
-2. End your response with }} (closing brace)
-3. NO markdown formatting (no ```, no ```json, no ```csharp)
-4. NO explanations before or after the JSON
-5. NO code comments outside the JSON structure
-6. Include ALL {len(tasks_data)} tasks in the "tasks" array
-7. Use \\n for newlines inside code_snippet strings
-8. Escape all quotes inside strings with \\"
-9. Use {comment_style} for comments inside the code
-10. For C#/Java: Generate ONE complete class with all methods inside
-
-WRONG - DO NOT DO THIS:
-```json
-{{ ... }}
-```
-
-CORRECT - DO THIS:
-{{ ... }}
-
-Your ENTIRE response must be parseable by JSON.parse(). Nothing else.
-
-Generate the JSON now:"""
+EXAMPLE OUTPUT (Python, Beginner level, 2 tasks):
+{{
+  "code_snippet": "# File: string_utils.py\\n\\ndef reverse_string(text):\\n    # TODO: Check if text is None or empty\\n    # TODO: Create an empty result variable\\n    # TODO: Loop through text from end to start\\n    # TODO: Add each character to result\\n    # TODO: Return the result\\n    pass\\n\\ndef count_vowels(text):\\n    # TODO: Create a variable to count vowels\\n    # TODO: Define which characters are vowels\\n    # TODO: Loop through each character in text\\n    # TODO: Check if character is a vowel\\n    # TODO: If yes, increment the counter\\n    # TODO: Return the counter\\n    pass",
+  "task_todos": {{
+    "1": ["Check if text is None or empty", "Create an empty result variable", "Loop through text from end to start", "Add each character to result", "Return the result"],
+    "2": ["Create a variable to count vowels", "Define which characters are vowels", "Loop through each character in text", "Check if character is a vowel", "If yes, increment the counter", "Return the counter"]
+  }}
+}}"""
