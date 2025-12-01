@@ -65,7 +65,12 @@ def _try_direct_parse(text: str) -> dict | None:
     """Try to parse JSON directly"""
     try:
         result = json.loads(text)
-        logger.info(f"Successfully parsed JSON with keys: {list(result.keys())}")
+        if isinstance(result, dict):
+            logger.info(f"Successfully parsed JSON with keys: {list(result.keys())}")
+        elif isinstance(result, list):
+            logger.info(f"Successfully parsed JSON array with {len(result)} items")
+        else:
+            logger.info(f"Successfully parsed JSON of type: {type(result)}")
         return result
     except json.JSONDecodeError as e:
         logger.debug(f"Direct parse failed: {e}")
@@ -303,7 +308,10 @@ def _complete_and_parse_truncated(json_str: str) -> dict | None:
             logger.info(f"Completed truncated JSON (length: {len(completed)})")
             result = _try_direct_parse(completed)
             if result:
-                logger.info(f"Successfully parsed completed JSON with keys: {list(result.keys())}")
+                if isinstance(result, dict):
+                    logger.info(f"Successfully parsed completed JSON with keys: {list(result.keys())}")
+                else:
+                    logger.info(f"Successfully parsed completed JSON")
             return result
     
     return None
