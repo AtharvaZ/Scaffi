@@ -1,27 +1,36 @@
 # Scaffi
 
-**Stop staring at assignment specs. Start coding in just a few seconds.**
+**AI-powered scaffolding for programming assignments. Stop staring at specs, start coding.**
 
-No more "Where do I even start!!!???" Just focused work and actual learning.
-Scaffi breaks down programming assignments into clear, manageable tasks—
-with 
-- *Starter code with TODOs*
-- *Concept-specific examples*
-- *Context-smart hints*
-- *Instant feedback*
-- *Validation tests*
-- *Downloadable files*
+Scaffi transforms overwhelming programming assignments into clear, manageable tasks with AI-generated starter code, progressive hints, and instant feedback—helping students learn by doing, not by copying.
 
-## 🚀 Features
+🚀 **[Try it live →](https://scaffi-ai.onrender.com/)**
 
-- **Assignment Parsing**: Upload PDFs or paste assignment text to automatically break down complex assignments into ordered tasks with dependencies
-- **Starter Code Generation**: Get AI-generated starter code templates with TODOs and concept examples tailored to your experience level
-- **Live Code Execution**: Run the desired language code in your assignment directly in the browser using Piston API with real-time output and error handling
-- **Progressive Hints**: Get contextual hints that become more specific as you ask for help multiple times
-- **Concept Examples**: On-demand examples of programming concepts in your known language to help bridge to the target language
-- **PDF Upload**: Extract text from assignment PDFs automatically
-- **Dark Mode**: Beautiful dark/light theme support
-- **Interactive UI**: Modern, responsive interface with animations and progress indicators
+### What Scaffi Does
+
+- 📋 **Smart Breakdown** - Parses assignments (PDF or text) into ordered tasks with dependencies
+- 🎯 **Starter Code** - Generates scaffolding with TODOs tailored to your experience level (beginner/intermediate/advanced)
+- 💡 **Progressive Hints** - Context-aware help that adapts to how many times you've asked
+- ⚡ **Live Execution** - Run tests for Python, JavaScript, C#, Java, and more directly in the browser
+- 🧪 **Auto-Generated Tests** - Creates test cases from your code to validate solutions
+- 🌓 **Modern UI** - Clean interface with dark mode and real-time feedback
+
+## ✨ Key Features
+
+### For Students
+- **Assignment Parser** - Upload PDFs or paste text to automatically break down complex assignments
+- **Experience-Based Scaffolding** - Generates 5-8 TODOs for beginners, 3-5 for intermediate, 1-3 for advanced
+- **Multi-Language Support** - Python, JavaScript, Java, C#, C, C++
+- **Live Code Execution** - Run code directly in browser with real-time output (powered by Piston API)
+- **Smart Hints** - Progressive help system that gets more specific with each request
+- **Test Generation** - Automatically creates test cases from your completed code
+- **Concept Examples** - On-demand examples comparing your known language to the target language
+
+### For Learning
+- **Template Preservation** - Detects and preserves starter code structure from assignments
+- **Multi-File Projects** - Handles complex assignments with multiple files and classes
+- **Dependency Tracking** - Shows which tasks depend on others
+- **Progress Tracking** - Visual indicators for completed tasks and concepts mastered
 
 ## 🛠️ Tech Stack
 
@@ -168,12 +177,13 @@ See the FastAPI docs at `http://127.0.0.1:5000/docs` for detailed API documentat
 
 ## 🎯 How It Works
 
-1. **Upload or Paste Assignment**: Students provide their assignment (PDF or text)
-2. **Task Breakdown**: AI agent analyzes the assignment and creates an ordered list of tasks with dependencies
-3. **Starter Code**: For each task, AI generates starter code with TODOs and concept examples
-4. **Code & Learn**: Students work through tasks in the integrated code editor
-5. **Get Help**: When stuck, students can ask for hints that become progressively more specific
-6. **Run & Test**: Execute code directly in the browser to see results and catch errors early
+1. **Submit Assignment** - Upload PDF or paste assignment text
+2. **AI Analysis** - Claude AI breaks down the assignment into ordered tasks with dependencies
+3. **Generate Scaffolding** - Creates starter code with experience-appropriate TODOs for each task
+4. **Code in Browser** - Work through tasks in the integrated Monaco editor
+5. **Get Help** - Ask for hints that become more detailed with each request
+6. **Run & Test** - Execute code instantly and generate test cases to validate your solution
+7. **Download** - Export your completed code when done
 
 ## 🔧 Development
 
@@ -223,3 +233,9 @@ MIT License
 ---
 
 **Made with ❤️ for students learning to code**
+
+
+
+---
+
+**Made for students learning to code**
