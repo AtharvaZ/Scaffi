@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
+import time
 import uvicorn
 import logging
 from dotenv import load_dotenv
@@ -92,15 +93,19 @@ async def root():
 @app.head("/health")
 async def health_check():
     """Detailed health check"""
-    return {
-        "status": "healthy",
-        "agents": {
-            "parser": "ready",
-            "codegen": "ready",
-            "helper": "ready"
-        },
-        "api_key_set": bool(os.getenv("ANTHROPIC_API_KEY"))
-    }
+    try:
+        # Quick health check without initializing agents
+        return {
+            "status": "healthy",
+            "timestamp": int(time.time()),
+            "api_key_configured": bool(os.getenv("ANTHROPIC_API_KEY"))
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": int(time.time())
+        }
 
 
 # ============================================
